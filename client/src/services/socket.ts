@@ -101,6 +101,14 @@ class SocketService {
     this.getSocket().emit('start-game', { roomId });
   }
 
+  public addBot(roomId: string) {
+    this.getSocket().emit('add-bot', { roomId });
+  }
+
+  public removeBot(roomId: string, botId: string) {
+    this.getSocket().emit('remove-bot', { roomId, botId });
+  }
+
   public rollDice(roomId: string, playerId: string) {
     this.getSocket().emit('roll-dice', { roomId, playerId });
   }

@@ -31,18 +31,9 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
   const isMyTurn = currentPlayer?.id === myPlayerId;
   const movableTokenIds = isMyTurn ? (gameState.movableTokenIds || []) : [];
 
-  // Track displayed progress of each token for step-by-step hopping animation
-  const [displayProgress, setDisplayProgress] = useState<Record<string, number>>(() => {
-    const init: Record<string, number> = {};
-    gameState.players.forEach(p => {
-      p.tokens.forEach(t => {
-        init[`${p.color}-${t.id}`] = t.progress;
-      });
-    });
-    return init;
-  });
-
-  const [hoppingTokenKey, setHoppingTokenKey] = useState<string | null>(null);
+  // Track previous progress and active hop
+  const prevProgressRef = useRef<Record<string, number>>({});
+  const [hoppingToken, setHoppingToken] = useState<{ key: string; step: number } | null>(null);
   const activeTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   // Step-by-step walking animation runner
@@ -54,35 +45,33 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
     gameState.players.forEach(player => {
       player.tokens.forEach(token => {
         const key = `${player.color}-${token.id}`;
-        const currentProg = displayProgress[key] ?? token.progress;
+        const prevProg = prevProgressRef.current[key];
         const targetProg = token.progress;
 
-        if (targetProg > currentProg && currentProg >= 0) {
+        // Remember current progress for next transition
+        prevProgressRef.current[key] = targetProg;
+
+        if (prevProg !== undefined && targetProg > prevProg && prevProg >= 0) {
           // Walking forward step-by-step
-          const stepsCount = targetProg - currentProg;
+          const stepsCount = targetProg - prevProg;
           for (let step = 1; step <= stepsCount; step++) {
-            const nextVal = currentProg + step;
+            const nextVal = prevProg + step;
             const timer = setTimeout(() => {
-              setDisplayProgress(prev => ({ ...prev, [key]: nextVal }));
-              setHoppingTokenKey(key);
+              setHoppingToken({ key, step: nextVal });
               sounds.playTokenStep(step);
 
               if (step === stepsCount) {
-                setTimeout(() => setHoppingTokenKey(null), 180);
+                setTimeout(() => setHoppingToken(null), 180);
               }
             }, (step - 1) * 150);
             activeTimersRef.current.push(timer);
           }
-        } else if (targetProg === 0 && currentProg === -1) {
+        } else if (prevProg !== undefined && targetProg === 0 && prevProg === -1) {
           // Token spawned from base onto track
-          setDisplayProgress(prev => ({ ...prev, [key]: 0 }));
           sounds.playTokenStep();
-        } else if (targetProg === -1 && currentProg > 0) {
+        } else if (prevProg !== undefined && targetProg === -1 && prevProg >= 0) {
           // Token captured back to base
-          setDisplayProgress(prev => ({ ...prev, [key]: -1 }));
           sounds.playCapturePop();
-        } else if (targetProg !== currentProg) {
-          setDisplayProgress(prev => ({ ...prev, [key]: targetProg }));
         }
       });
     });
@@ -90,7 +79,7 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
     return () => {
       activeTimersRef.current.forEach(t => clearTimeout(t));
     };
-  }, [gameState.players]);
+  }, [gameState]);
 
   // Map every token to its current grid row & col coordinate based on animated progress
   const placedTokens: Array<{
@@ -105,11 +94,14 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
   gameState.players.forEach(player => {
     player.tokens.forEach((token) => {
       const key = `${player.color}-${token.id}`;
-      const currentProg = displayProgress[key] ?? token.progress;
+      // When actively hopping, use the animated step; otherwise ALWAYS use the authoritative token.progress
+      const currentProg = (hoppingToken && hoppingToken.key === key)
+        ? hoppingToken.step
+        : token.progress;
       const coord = getCoordForProgress(player.color, currentProg, token.id);
 
       const isMovable = isMyTurn && player.id === myPlayerId && movableTokenIds.includes(token.id);
-      const isHopping = hoppingTokenKey === key;
+      const isHopping = hoppingToken?.key === key;
 
       placedTokens.push({
         playerColor: player.color,

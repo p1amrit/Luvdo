@@ -240,9 +240,20 @@ export const LobbyView: React.FC<LobbyViewProps> = ({ room, myPlayer, onThemeCha
             <Users size={16} className="text-pink-400" />
             <span>Players in Room ({room.players.length}/4)</span>
           </h3>
-          <span className="text-xs text-pink-300/80">
-            {room.players.length === 1 ? 'Waiting for friends to join...' : `${room.players.length} players ready`}
-          </span>
+
+          <div className="flex items-center gap-2">
+            {isHost && room.players.length < 4 && (
+              <button
+                onClick={() => socketService.addBot(room.id)}
+                className="px-3 py-1 rounded-xl bg-purple-500/25 hover:bg-purple-500/40 border border-purple-400/50 text-purple-200 text-xs font-bold flex items-center gap-1 shadow-sm transition-transform active:scale-95"
+              >
+                <span>🤖 Add AI Bot</span>
+              </button>
+            )}
+            <span className="text-xs text-pink-300/80 hidden sm:inline">
+              {room.players.length === 1 ? 'Waiting for players...' : `${room.players.length} players ready`}
+            </span>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -263,6 +274,11 @@ export const LobbyView: React.FC<LobbyViewProps> = ({ room, myPlayer, onThemeCha
                           Host
                         </span>
                       )}
+                      {p.isBot && (
+                        <span className="text-[9px] bg-indigo-500/30 text-indigo-200 px-1.5 py-0.2 rounded border border-indigo-400/30 font-semibold">
+                          AI Bot
+                        </span>
+                      )}
                     </div>
                     <p className={`text-[10px] ${colStyle.textColor}`}>
                       {colStyle.emoji} {colStyle.name}
@@ -270,9 +286,20 @@ export const LobbyView: React.FC<LobbyViewProps> = ({ room, myPlayer, onThemeCha
                   </div>
                 </div>
 
-                <div className="flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                  <span className="text-[10px] text-emerald-300">Online</span>
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                    <span className="text-[10px] text-emerald-300">Online</span>
+                  </div>
+                  {isHost && p.isBot && (
+                    <button
+                      onClick={() => socketService.removeBot(room.id, p.id)}
+                      className="px-1.5 py-0.5 rounded text-white/40 hover:text-rose-400 hover:bg-white/10 transition-colors text-xs font-bold"
+                      title="Remove AI Bot"
+                    >
+                      ✕
+                    </button>
+                  )}
                 </div>
               </div>
             );

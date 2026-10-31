@@ -48,6 +48,20 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', serverTime: new Date().toISOString() });
 });
 
+// Check Room Status
+app.get('/api/rooms/:roomId', (req, res) => {
+  const room = rooms.get(req.params.roomId.toUpperCase());
+  if (!room) {
+    return res.status(404).json({ error: 'Room not found' });
+  }
+  res.json({
+    roomId: room.id,
+    status: room.status,
+    playerCount: room.players.length,
+    vibe: room.vibe
+  });
+});
+
 // Create Room Endpoint
 app.post('/api/rooms/create', (req, res) => {
   const { hostName, hostAvatar, vibe = 'friends', mode = 'free-for-all-4p', theme = 'celestial', gentleMode = false, quickMode = true } = req.body;
@@ -87,6 +101,66 @@ app.post('/api/rooms/create', (req, res) => {
   rooms.set(roomId, newRoom);
   res.json({ roomId, room: newRoom });
 });
+
+// Autonomous AI Bot turn logic
+function checkAndPlayBotTurn(room) {
+  if (!room || !room.gameState || room.gameState.winner || room.status !== 'playing') return;
+  const currentTurnPlayer = room.gameState.players[room.gameState.currentTurnIndex];
+  if (!currentTurnPlayer || !currentTurnPlayer.isBot) return;
+
+  const turnIndexAtStart = room.gameState.currentTurnIndex;
+
+  setTimeout(() => {
+    if (!room.gameState || room.gameState.winner || room.status !== 'playing') return;
+    if (room.gameState.currentTurnIndex !== turnIndexAtStart) return;
+
+    if (room.gameState.diceValue === null) {
+      const rollResult = rollDiceForCurrentPlayer(room.gameState);
+      if (!rollResult) return;
+
+      io.to(room.id).emit('dice-rolled', {
+        rollResult,
+        gameState: room.gameState
+      });
+
+      if (rollResult.penalty || rollResult.movableTokenIds.length === 0) {
+        setTimeout(() => {
+          if (!room.gameState || room.gameState.winner) return;
+          passTurnToNextPlayer(room.gameState);
+          io.to(room.id).emit('turn-passed', { gameState: room.gameState });
+          checkAndPlayBotTurn(room);
+        }, 1400);
+      } else {
+        setTimeout(() => {
+          if (!room.gameState || room.gameState.winner) return;
+          if (room.gameState.currentTurnIndex !== turnIndexAtStart) return;
+
+          const movable = rollResult.movableTokenIds;
+          let chosenTokenId = movable[0];
+
+          // Priority: 1. Unlock base token if rolled 6, 2. Furthest advanced token
+          const baseToken = currentTurnPlayer.tokens.find(t => t.progress === -1 && movable.includes(t.id));
+          if (baseToken) {
+            chosenTokenId = baseToken.id;
+          } else {
+            const sorted = movable.slice().sort((a, b) => {
+              const progA = currentTurnPlayer.tokens.find(t => t.id === a)?.progress || 0;
+              const progB = currentTurnPlayer.tokens.find(t => t.id === b)?.progress || 0;
+              return progB - progA;
+            });
+            chosenTokenId = sorted[0];
+          }
+
+          const success = moveToken(room.gameState, chosenTokenId);
+          if (success) {
+            io.to(room.id).emit('token-moved', { gameState: room.gameState });
+            checkAndPlayBotTurn(room);
+          }
+        }, 1100);
+      }
+    }
+  }, 900);
+}
 
 // Socket connection
 io.on('connection', (socket) => {
@@ -213,6 +287,46 @@ io.on('connection', (socket) => {
     });
 
     io.to(roomId).emit('game-started', { gameState: room.gameState, room });
+    checkAndPlayBotTurn(room);
+  });
+
+  // Add AI Bot (Max 4 players)
+  socket.on('add-bot', ({ roomId }) => {
+    const room = rooms.get(roomId);
+    if (!room || room.status !== 'lobby') return;
+    if (room.players.length >= 4) {
+      socket.emit('error-message', { message: 'Room is full (max 4 players)!' });
+      return;
+    }
+
+    const usedColors = room.players.map(p => p.color);
+    const availableColor = COLORS.find(c => !usedColors.includes(c)) || COLORS[room.players.length % COLORS.length];
+    const botCount = room.players.filter(p => p.isBot).length + 1;
+    const botNames = ['CupidBot 🤖', 'LudoAI ⚡', 'PixelBuddy 👾', 'StarBot ⭐'];
+    const botName = botNames[(botCount - 1) % botNames.length];
+
+    const botPlayer = {
+      id: `bot-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`,
+      socketId: 'bot-internal',
+      name: botName,
+      avatar: '🤖',
+      color: availableColor,
+      isHost: false,
+      isReady: true,
+      isOnline: true,
+      isBot: true
+    };
+
+    room.players.push(botPlayer);
+    io.to(roomId).emit('room-updated', { room });
+  });
+
+  // Remove AI Bot
+  socket.on('remove-bot', ({ roomId, botId }) => {
+    const room = rooms.get(roomId);
+    if (!room || room.status !== 'lobby') return;
+    room.players = room.players.filter(p => p.id !== botId);
+    io.to(roomId).emit('room-updated', { room });
   });
 
   // Roll Dice
@@ -232,15 +346,20 @@ io.on('connection', (socket) => {
     }
 
     const rollResult = rollDiceForCurrentPlayer(room.gameState);
+    if (!rollResult) return;
+
     io.to(roomId).emit('dice-rolled', {
       rollResult,
       gameState: room.gameState
     });
 
-    // If no moves were available, wait briefly so players can see the roll, then notify next turn
-    if (rollResult.movableTokenIds.length === 0) {
+    // If no moves were available or 3-sixes penalty, wait 1400ms so players see the dice roll, then pass turn
+    if (rollResult.penalty || rollResult.movableTokenIds.length === 0) {
       setTimeout(() => {
+        if (!room.gameState || room.gameState.winner) return;
+        passTurnToNextPlayer(room.gameState);
         io.to(roomId).emit('turn-passed', { gameState: room.gameState });
+        checkAndPlayBotTurn(room);
       }, 1400);
     }
   });
@@ -258,6 +377,7 @@ io.on('connection', (socket) => {
     const success = moveToken(room.gameState, tokenId);
     if (success) {
       io.to(roomId).emit('token-moved', { gameState: room.gameState });
+      checkAndPlayBotTurn(room);
     }
   });
 

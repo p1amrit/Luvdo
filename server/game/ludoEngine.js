@@ -62,7 +62,8 @@ export function createInitialGameState(playerConfigs = [], options = {}) {
       { id: 3, progress: -1, stepHistory: [] }
     ],
     tokensHome: 0,
-    hasWon: false
+    hasWon: false,
+    isBot: !!p.isBot
   }));
 
   return {
@@ -74,6 +75,7 @@ export function createInitialGameState(playerConfigs = [], options = {}) {
     players,
     currentTurnIndex: 0,
     diceValue: null,
+    rollId: null,
     isRolling: false,
     consecutiveSixes: 0,
     movableTokenIds: [],
@@ -148,17 +150,18 @@ export function rollDiceForCurrentPlayer(gameState) {
   if (consecutiveSixes === 3) {
     gameState.consecutiveSixes = 0;
     gameState.diceValue = dice;
+    gameState.rollId = `${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
     gameState.movableTokenIds = [];
     gameState.lastEvent = {
       type: 'penalty',
       text: `${currentPlayer.name} rolled three 6s in a row! Turn skipped.`,
       color: currentPlayer.color
     };
-    passTurnToNextPlayer(gameState);
-    return { dice, movableTokenIds: [], penalty: true };
+    return { dice, movableTokenIds: [], penalty: true, rollId: gameState.rollId };
   }
 
   gameState.diceValue = dice;
+  gameState.rollId = `${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
   gameState.consecutiveSixes = consecutiveSixes;
 
   const movableTokenIds = getMovableTokens(currentPlayer, dice);
@@ -171,12 +174,7 @@ export function rollDiceForCurrentPlayer(gameState) {
     dice
   };
 
-  // If no movable tokens, automatically advance turn after delay
-  if (movableTokenIds.length === 0) {
-    passTurnToNextPlayer(gameState);
-  }
-
-  return { dice, movableTokenIds, penalty: false };
+  return { dice, movableTokenIds, penalty: false, rollId: gameState.rollId };
 }
 
 export function moveToken(gameState, tokenId) {

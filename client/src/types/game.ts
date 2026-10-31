@@ -22,6 +22,7 @@ export interface Player {
   isHost: boolean;
   isReady: boolean;
   isOnline: boolean;
+  isBot?: boolean;
 }
 
 export interface DareCard {
@@ -51,6 +52,7 @@ export interface GameState {
   players: Player[];
   currentTurnIndex: number;
   diceValue: number | null;
+  rollId?: string | null;
   isRolling: boolean;
   consecutiveSixes: number;
   movableTokenIds: number[];

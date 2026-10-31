@@ -23,10 +23,10 @@ export const App: React.FC = () => {
   const [guestName, setGuestName] = useState(() => localStorage.getItem('luvdo_name') || 'PixelKing');
   const [guestAvatar, setGuestAvatar] = useState(() => localStorage.getItem('luvdo_avatar') || '😎');
   const [myPlayerId] = useState(() => {
-    let id = localStorage.getItem('luvdo_player_id');
+    let id = sessionStorage.getItem('luvdo_player_id');
     if (!id) {
       id = `p-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
-      localStorage.setItem('luvdo_player_id', id);
+      sessionStorage.setItem('luvdo_player_id', id);
     }
     return id;
   });
@@ -70,6 +70,7 @@ export const App: React.FC = () => {
 
     socket.on('room-updated', ({ room: updatedRoom }: { room: Room }) => {
       setRoom(updatedRoom);
+      setInRoom(true);
       if (updatedRoom.theme) {
         setCurrentTheme(updatedRoom.theme);
       }
@@ -99,13 +100,14 @@ export const App: React.FC = () => {
     socket.on('game-started', ({ gameState: newGameState, room: updatedRoom }: { gameState: GameState; room: Room }) => {
       setGameState(newGameState);
       setRoom(updatedRoom);
+      setInRoom(true);
       sounds.playDareCardSparkle();
     });
 
     socket.on('dice-rolled', ({ gameState: newGameState, rollResult }: { gameState: GameState; rollResult?: { movableTokenIds: number[] } }) => {
       setGameState({ ...newGameState });
 
-      // Quality-of-life: Auto-move token if it is the ONLY eligible moving token!
+      // Auto-move token if it is the ONLY eligible moving token after the 1000ms dice roll animation!
       const currentTurnPlayer = newGameState.players[newGameState.currentTurnIndex];
       const movable = rollResult?.movableTokenIds || newGameState.movableTokenIds || [];
 
@@ -120,7 +122,7 @@ export const App: React.FC = () => {
             sounds.playTokenStep();
             socketService.moveToken(roomIdRef.current, myPlayerId, singleTokenId);
           }
-        }, 550);
+        }, 1000);
       }
     });
 
@@ -145,6 +147,10 @@ export const App: React.FC = () => {
 
     socket.on('error-message', ({ message }: { message: string }) => {
       alert(message);
+      if (message.toLowerCase().includes('not found')) {
+        setInRoom(false);
+        setRoom(null);
+      }
     });
 
     return () => {
@@ -427,6 +433,19 @@ export const App: React.FC = () => {
               </button>
             </div>
           </div>
+        ) : inRoom && !room ? (
+          /* Connecting Room Fallback */
+          <div className="w-full max-w-sm mx-auto p-8 rounded-3xl glass-panel border border-white/20 text-center space-y-4 animate-fade-in">
+            <span className="text-4xl animate-bounce inline-block">🎲</span>
+            <h3 className="text-base font-bold text-white">Connecting to Room...</h3>
+            <p className="text-xs text-pink-200/70">Syncing room details with game server</p>
+            <button
+              onClick={() => { setInRoom(false); setRoom(null); }}
+              className="py-2 px-5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-semibold transition-all"
+            >
+              Back to Home
+            </button>
+          </div>
         ) : room?.status === 'lobby' ? (
           /* Room Lobby */
           <LobbyView
@@ -462,6 +481,7 @@ export const App: React.FC = () => {
                   currentTurnPlayer={currentTurnPlayer}
                   isMyTurn={isMyTurn}
                   diceValue={gameState.diceValue}
+                  rollId={gameState.rollId}
                   isRolling={gameState.isRolling}
                   onRoll={handleRollDice}
                   canRoll={canRoll}
@@ -475,6 +495,7 @@ export const App: React.FC = () => {
                   currentTurnPlayer={currentTurnPlayer}
                   isMyTurn={isMyTurn}
                   diceValue={gameState.diceValue}
+                  rollId={gameState.rollId}
                   isRolling={gameState.isRolling}
                   onRoll={handleRollDice}
                   canRoll={canRoll}

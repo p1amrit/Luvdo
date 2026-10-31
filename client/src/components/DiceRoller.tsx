@@ -8,6 +8,7 @@ interface DiceRollerProps {
   currentTurnPlayer: Player;
   isMyTurn: boolean;
   diceValue: number | null;
+  rollId?: string | null;
   isRolling: boolean;
   onRoll: () => void;
   canRoll: boolean;
@@ -28,6 +29,7 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({
   currentTurnPlayer,
   isMyTurn,
   diceValue,
+  rollId,
   onRoll,
   canRoll,
   compact = false
@@ -60,7 +62,7 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({
 
       return () => clearTimeout(timer);
     }
-  }, [diceValue]);
+  }, [diceValue, rollId]);
 
   const colorStyle = COLOR_STYLES[currentTurnPlayer.color];
 
