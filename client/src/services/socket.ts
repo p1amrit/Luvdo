@@ -1,29 +1,59 @@
 import { io, Socket } from 'socket.io-client';
+import { Capacitor } from '@capacitor/core';
 import { Player, GameMode, AestheticTheme, RoomVibe, ReactionType } from '../types/game';
 
-// If running in development with Vite proxy, native mobile app, or production web
-const PRODUCTION_LIVE_URL = 'https://luvdo.onrender.com';
+export const PRODUCTION_LIVE_URL = 'https://luvdo.onrender.com';
 
-const SERVER_URL = import.meta.env.VITE_SERVER_URL || (
-  typeof window !== 'undefined' && window.location.port === '3000'
-    ? 'http://localhost:4000'
-    : (typeof window !== 'undefined' && (
-        window.location.protocol === 'capacitor:' || 
-        window.location.protocol === 'file:' || 
-        (window.location.hostname === 'localhost' && window.location.port !== '4000' && window.location.port !== '3000')
-      ))
-      ? PRODUCTION_LIVE_URL
-      : '/'
-);
+export function isNativeMobile(): boolean {
+  if (typeof window === 'undefined') return false;
+  return (
+    Capacitor.isNativePlatform() ||
+    window.location.protocol === 'capacitor:' ||
+    window.location.protocol === 'file:' ||
+    (window.location.hostname === 'localhost' && window.location.port === '')
+  );
+}
+
+export function getServerUrl(): string {
+  if (import.meta.env.VITE_SERVER_URL) {
+    return import.meta.env.VITE_SERVER_URL;
+  }
+  if (typeof window === 'undefined') {
+    return PRODUCTION_LIVE_URL;
+  }
+  // Local Vite dev server
+  if (window.location.port === '3000') {
+    return 'http://localhost:4000';
+  }
+  // Native Capacitor Android/iOS app
+  if (isNativeMobile()) {
+    return PRODUCTION_LIVE_URL;
+  }
+  // Web production (Render, custom domain, etc.)
+  return '/';
+}
+
+export const SERVER_URL = getServerUrl();
+
+export function getApiUrl(endpoint: string): string {
+  const clean = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  const base = getServerUrl();
+  if (base === '/' || base === '') {
+    return clean;
+  }
+  return `${base.replace(/\/$/, '')}${clean}`;
+}
 
 class SocketService {
   public socket: Socket | null = null;
 
   public connect(): Socket {
     if (!this.socket) {
-      this.socket = io(SERVER_URL, {
+      const targetUrl = getServerUrl();
+      console.log('[Socket] Initializing connection to:', targetUrl);
+      this.socket = io(targetUrl, {
         transports: ['websocket', 'polling'],
-        reconnectionAttempts: 5,
+        reconnectionAttempts: 10,
         reconnectionDelay: 1000
       });
 

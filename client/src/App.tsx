@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Sparkles, Volume2, VolumeX, ArrowLeft, Users } from 'lucide-react';
 import { Room, GameState, AestheticTheme, RoomVibe, ChatMessage } from './types/game';
-import { socketService } from './services/socket';
+import { socketService, getApiUrl } from './services/socket';
 import { sounds } from './services/soundEffects';
 import { AestheticBackground } from './components/AestheticBackground';
 import { LobbyView } from './components/LobbyView';
@@ -161,9 +161,13 @@ export const App: React.FC = () => {
   }, []);
 
   // Create Room
+  const [isCreatingRoom, setIsCreatingRoom] = useState(false);
   const handleCreateRoom = async () => {
+    if (isCreatingRoom) return;
+    setIsCreatingRoom(true);
     try {
-      const res = await fetch('/api/rooms/create', {
+      const url = getApiUrl('/api/rooms/create');
+      const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -177,6 +181,10 @@ export const App: React.FC = () => {
         })
       });
 
+      if (!res.ok) {
+        throw new Error(`Server returned HTTP ${res.status}`);
+      }
+
       const data = await res.json();
       if (data.roomId) {
         setRoomId(data.roomId);
@@ -189,7 +197,9 @@ export const App: React.FC = () => {
       }
     } catch (e) {
       console.error('Failed to create room:', e);
-      alert('Could not connect to server. Ensure backend is running.');
+      alert('Connecting to live game server... If this is the first match of the hour, the server may take ~15-20 seconds to wake up from idle. Please tap again!');
+    } finally {
+      setIsCreatingRoom(false);
     }
   };
 
@@ -401,10 +411,11 @@ export const App: React.FC = () => {
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <button
                 onClick={handleCreateRoom}
-                className="flex-1 py-4 px-6 rounded-2xl bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-600 hover:from-pink-600 hover:to-indigo-700 text-white font-bold text-sm shadow-[0_0_30px_rgba(244,63,94,0.5)] transition-transform active:scale-95 flex items-center justify-center gap-2"
+                disabled={isCreatingRoom}
+                className="flex-1 py-4 px-6 rounded-2xl bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-600 hover:from-pink-600 hover:to-indigo-700 disabled:opacity-60 text-white font-bold text-sm shadow-[0_0_30px_rgba(244,63,94,0.5)] transition-transform active:scale-95 flex items-center justify-center gap-2"
               >
-                <Sparkles size={18} />
-                <span>Create Room</span>
+                <Sparkles size={18} className={isCreatingRoom ? "animate-spin" : ""} />
+                <span>{isCreatingRoom ? 'Connecting to Server...' : 'Create Room'}</span>
               </button>
 
               <button

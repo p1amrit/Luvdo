@@ -19,7 +19,10 @@ export const LobbyView: React.FC<LobbyViewProps> = ({ room, myPlayer, onThemeCha
   const isHost = myPlayer.isHost;
 
   const handleCopyLink = () => {
-    const url = `${window.location.origin}?room=${room.id}`;
+    const origin = (typeof window !== 'undefined' && (window.location.hostname === 'localhost' && window.location.port === '' || window.location.protocol === 'capacitor:'))
+      ? 'https://luvdo.onrender.com'
+      : window.location.origin;
+    const url = `${origin}?room=${room.id}`;
     navigator.clipboard.writeText(url);
     setCopied(true);
     setTimeout(() => setCopied(false), 2500);
