@@ -1,0 +1,18 @@
+{
+  "name": "LUVDO - Aesthetic Realtime Ludo",
+  "short_name": "LUVDO",
+  "description": "The aesthetic, premium Ludo platform for friends and couples with voice chat, 3D dice physics, and smooth animations.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#070814",
+  "theme_color": "#070814",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
