@@ -1,0 +1,8 @@
+{
+  "appId": "com.luvdo.app",
+  "appName": "LUVDO",
+  "webDir": "client/dist",
+  "server": {
+    "androidScheme": "https"
+  }
+}

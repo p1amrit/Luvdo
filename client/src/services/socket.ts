@@ -1,11 +1,19 @@
 import { io, Socket } from 'socket.io-client';
 import { Player, GameMode, AestheticTheme, RoomVibe, ReactionType } from '../types/game';
 
-// If running in development with Vite proxy or production
+// If running in development with Vite proxy, native mobile app, or production web
+const PRODUCTION_LIVE_URL = 'https://luvdo.onrender.com';
+
 const SERVER_URL = import.meta.env.VITE_SERVER_URL || (
   typeof window !== 'undefined' && window.location.port === '3000'
     ? 'http://localhost:4000'
-    : '/'
+    : (typeof window !== 'undefined' && (
+        window.location.protocol === 'capacitor:' || 
+        window.location.protocol === 'file:' || 
+        (window.location.hostname === 'localhost' && window.location.port !== '4000' && window.location.port !== '3000')
+      ))
+      ? PRODUCTION_LIVE_URL
+      : '/'
 );
 
 class SocketService {
