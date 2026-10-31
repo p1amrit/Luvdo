@@ -1,0 +1,355 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { motion } from 'framer-motion';
+import { GameState, PlayerColor, Token } from '../types/game';
+import {
+  MAIN_TRACK_COORDS,
+  RUNWAY_COORDS,
+  BASE_SLOTS_COORDS,
+  COLOR_STYLES,
+  GridCoord,
+  getCoordForProgress
+} from '../utils/boardCoordinates';
+import { sounds } from '../services/soundEffects';
+
+interface LudoBoardProps {
+  gameState: GameState;
+  myPlayerId: string;
+  onSelectToken: (tokenId: number) => void;
+  onScreenTouch?: (x: number, y: number) => void;
+}
+
+// Traditional 8 safe positions on the 52-tile track
+const TRADITIONAL_SAFE_TILES = [0, 8, 13, 21, 26, 34, 39, 47];
+
+export const LudoBoard: React.FC<LudoBoardProps> = ({
+  gameState,
+  myPlayerId,
+  onSelectToken,
+  onScreenTouch
+}) => {
+  const currentPlayer = gameState.players[gameState.currentTurnIndex];
+  const isMyTurn = currentPlayer?.id === myPlayerId;
+  const movableTokenIds = isMyTurn ? (gameState.movableTokenIds || []) : [];
+
+  // Track displayed progress of each token for step-by-step hopping animation
+  const [displayProgress, setDisplayProgress] = useState<Record<string, number>>(() => {
+    const init: Record<string, number> = {};
+    gameState.players.forEach(p => {
+      p.tokens.forEach(t => {
+        init[`${p.color}-${t.id}`] = t.progress;
+      });
+    });
+    return init;
+  });
+
+  const [hoppingTokenKey, setHoppingTokenKey] = useState<string | null>(null);
+  const activeTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  // Step-by-step walking animation runner
+  useEffect(() => {
+    // Clear any previous running timers
+    activeTimersRef.current.forEach(t => clearTimeout(t));
+    activeTimersRef.current = [];
+
+    gameState.players.forEach(player => {
+      player.tokens.forEach(token => {
+        const key = `${player.color}-${token.id}`;
+        const currentProg = displayProgress[key] ?? token.progress;
+        const targetProg = token.progress;
+
+        if (targetProg > currentProg && currentProg >= 0) {
+          // Walking forward step-by-step
+          const stepsCount = targetProg - currentProg;
+          for (let step = 1; step <= stepsCount; step++) {
+            const nextVal = currentProg + step;
+            const timer = setTimeout(() => {
+              setDisplayProgress(prev => ({ ...prev, [key]: nextVal }));
+              setHoppingTokenKey(key);
+              sounds.playTokenStep(step);
+
+              if (step === stepsCount) {
+                setTimeout(() => setHoppingTokenKey(null), 180);
+              }
+            }, (step - 1) * 150);
+            activeTimersRef.current.push(timer);
+          }
+        } else if (targetProg === 0 && currentProg === -1) {
+          // Token spawned from base onto track
+          setDisplayProgress(prev => ({ ...prev, [key]: 0 }));
+          sounds.playTokenStep();
+        } else if (targetProg === -1 && currentProg > 0) {
+          // Token captured back to base
+          setDisplayProgress(prev => ({ ...prev, [key]: -1 }));
+          sounds.playCapturePop();
+        } else if (targetProg !== currentProg) {
+          setDisplayProgress(prev => ({ ...prev, [key]: targetProg }));
+        }
+      });
+    });
+
+    return () => {
+      activeTimersRef.current.forEach(t => clearTimeout(t));
+    };
+  }, [gameState.players]);
+
+  // Map every token to its current grid row & col coordinate based on animated progress
+  const placedTokens: Array<{
+    playerColor: PlayerColor;
+    playerId: string;
+    token: Token;
+    coord: GridCoord;
+    isMovable: boolean;
+    isHopping: boolean;
+  }> = [];
+
+  gameState.players.forEach(player => {
+    player.tokens.forEach((token) => {
+      const key = `${player.color}-${token.id}`;
+      const currentProg = displayProgress[key] ?? token.progress;
+      const coord = getCoordForProgress(player.color, currentProg, token.id);
+
+      const isMovable = isMyTurn && player.id === myPlayerId && movableTokenIds.includes(token.id);
+      const isHopping = hoppingTokenKey === key;
+
+      placedTokens.push({
+        playerColor: player.color,
+        playerId: player.id,
+        token,
+        coord,
+        isMovable,
+        isHopping
+      });
+    });
+  });
+
+  const handleBoardClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (onScreenTouch) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const x = ((e.clientX - rect.left) / rect.width) * 100;
+      const y = ((e.clientY - rect.top) / rect.height) * 100;
+      onScreenTouch(x, y);
+    }
+  };
+
+  // Traditional Ludo Star Icons on safe spots
+  const getSpecialCellContent = (r: number, c: number) => {
+    const mainIndex = MAIN_TRACK_COORDS.findIndex(item => item.r === r && item.c === c);
+    if (mainIndex !== -1 && TRADITIONAL_SAFE_TILES.includes(mainIndex)) {
+      return (
+        <span className="text-yellow-400 text-xs sm:text-sm font-black filter drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] select-none">
+          ⭐
+        </span>
+      );
+    }
+    return null;
+  };
+
+  const getRunwayColor = (r: number, c: number): string | null => {
+    for (const [colKey, runway] of Object.entries(RUNWAY_COORDS)) {
+      if (runway.some(item => item.r === r && item.c === c)) {
+        return colKey;
+      }
+    }
+    return null;
+  };
+
+  return (
+    <div
+      onClick={handleBoardClick}
+      className="relative w-full max-w-[min(96vw,500px)] aspect-square mx-auto p-1.5 sm:p-3 rounded-2xl sm:rounded-3xl glass-panel shadow-[0_12px_45px_rgba(0,0,0,0.6)] border border-white/20 select-none touch-manipulation"
+    >
+      {/* 15x15 Board Grid */}
+      <div className="relative w-full h-full grid grid-cols-15 grid-rows-15 gap-[1px] sm:gap-[2px] bg-slate-950/80 p-1 rounded-xl sm:rounded-2xl border border-white/10 overflow-hidden">
+
+        {/* 1. Base Corner: Rose (Top-Left, 0..5, 0..5) */}
+        <div className="col-start-1 col-span-6 row-start-1 row-span-6 rounded-lg sm:rounded-xl bg-gradient-to-br from-rose-950/90 via-pink-900/70 to-rose-900/50 p-1.5 sm:p-2 border border-rose-500/40 flex flex-col justify-between overflow-hidden">
+          <div className="flex items-center justify-between text-[10px] sm:text-xs text-rose-300 font-bold px-0.5 sm:px-1">
+            <span className="truncate max-w-[70px] sm:max-w-none flex items-center gap-1">
+              🔴 {gameState.players.find(p => p.color === 'rose')?.name || 'Rose'}
+            </span>
+            <span className="text-[9px] sm:text-[10px] bg-rose-500/30 px-1.5 py-0.2 rounded-full border border-rose-400/40">
+              {gameState.players.find(p => p.color === 'rose')?.tokensHome || 0}/{gameState.targetTokensToWin}
+            </span>
+          </div>
+          <div className="w-full h-full flex items-center justify-center">
+            <div className="grid grid-cols-2 gap-2 p-1.5 sm:p-2 rounded-lg sm:rounded-xl bg-black/45 border border-rose-500/30">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="w-5 h-5 sm:w-7 sm:h-7 rounded-full border border-rose-400/50 bg-rose-950/60 flex items-center justify-center shadow-inner" />
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* 2. Base Corner: Lavender (Top-Right, 0..5, 9..14) */}
+        <div className="col-start-10 col-span-6 row-start-1 row-span-6 rounded-lg sm:rounded-xl bg-gradient-to-br from-purple-950/90 via-indigo-900/70 to-purple-900/50 p-1.5 sm:p-2 border border-purple-500/40 flex flex-col justify-between overflow-hidden">
+          <div className="flex items-center justify-between text-[10px] sm:text-xs text-purple-300 font-bold px-0.5 sm:px-1">
+            <span className="truncate max-w-[70px] sm:max-w-none flex items-center gap-1">
+              🟣 {gameState.players.find(p => p.color === 'lavender')?.name || 'Lavender'}
+            </span>
+            <span className="text-[9px] sm:text-[10px] bg-purple-500/30 px-1.5 py-0.2 rounded-full border border-purple-400/40">
+              {gameState.players.find(p => p.color === 'lavender')?.tokensHome || 0}/{gameState.targetTokensToWin}
+            </span>
+          </div>
+          <div className="w-full h-full flex items-center justify-center">
+            <div className="grid grid-cols-2 gap-2 p-1.5 sm:p-2 rounded-lg sm:rounded-xl bg-black/45 border border-purple-500/30">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="w-5 h-5 sm:w-7 sm:h-7 rounded-full border border-purple-400/50 bg-purple-950/60 flex items-center justify-center shadow-inner" />
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* 3. Base Corner: Peach (Bottom-Right, 9..14, 9..14) */}
+        <div className="col-start-10 col-span-6 row-start-10 row-span-6 rounded-lg sm:rounded-xl bg-gradient-to-br from-amber-950/90 via-orange-900/70 to-amber-900/50 p-1.5 sm:p-2 border border-amber-500/40 flex flex-col justify-between overflow-hidden">
+          <div className="flex items-center justify-between text-[10px] sm:text-xs text-amber-300 font-bold px-0.5 sm:px-1">
+            <span className="truncate max-w-[70px] sm:max-w-none flex items-center gap-1">
+              🟡 {gameState.players.find(p => p.color === 'peach')?.name || 'Peach'}
+            </span>
+            <span className="text-[9px] sm:text-[10px] bg-amber-500/30 px-1.5 py-0.2 rounded-full border border-amber-400/40">
+              {gameState.players.find(p => p.color === 'peach')?.tokensHome || 0}/{gameState.targetTokensToWin}
+            </span>
+          </div>
+          <div className="w-full h-full flex items-center justify-center">
+            <div className="grid grid-cols-2 gap-2 p-1.5 sm:p-2 rounded-lg sm:rounded-xl bg-black/45 border border-amber-500/30">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="w-5 h-5 sm:w-7 sm:h-7 rounded-full border border-amber-400/50 bg-amber-950/60 flex items-center justify-center shadow-inner" />
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* 4. Base Corner: Mint (Bottom-Left, 9..14, 0..5) */}
+        <div className="col-start-1 col-span-6 row-start-10 row-span-6 rounded-lg sm:rounded-xl bg-gradient-to-br from-teal-950/90 via-emerald-900/70 to-teal-900/50 p-1.5 sm:p-2 border border-teal-500/40 flex flex-col justify-between overflow-hidden">
+          <div className="flex items-center justify-between text-[10px] sm:text-xs text-teal-300 font-bold px-0.5 sm:px-1">
+            <span className="truncate max-w-[70px] sm:max-w-none flex items-center gap-1">
+              🟢 {gameState.players.find(p => p.color === 'mint')?.name || 'Mint'}
+            </span>
+            <span className="text-[9px] sm:text-[10px] bg-teal-500/30 px-1.5 py-0.2 rounded-full border border-teal-400/40">
+              {gameState.players.find(p => p.color === 'mint')?.tokensHome || 0}/{gameState.targetTokensToWin}
+            </span>
+          </div>
+          <div className="w-full h-full flex items-center justify-center">
+            <div className="grid grid-cols-2 gap-2 p-1.5 sm:p-2 rounded-lg sm:rounded-xl bg-black/45 border border-teal-500/30">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="w-5 h-5 sm:w-7 sm:h-7 rounded-full border border-teal-400/50 bg-teal-950/60 flex items-center justify-center shadow-inner" />
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Center: Traditional 4-Triangle Ludo Home (rows 6..8, cols 6..8) */}
+        <div className="col-start-7 col-span-3 row-start-7 row-span-3 rounded-xl bg-slate-900 border border-white/20 relative overflow-hidden flex items-center justify-center shadow-inner">
+          <svg className="w-full h-full" viewBox="0 0 100 100">
+            {/* Top triangle: Lavender */}
+            <polygon points="0,0 100,0 50,50" fill="#a855f7" fillOpacity="0.55" stroke="#a855f7" strokeWidth="0.5" />
+            {/* Right triangle: Peach */}
+            <polygon points="100,0 100,100 50,50" fill="#fb923c" fillOpacity="0.55" stroke="#fb923c" strokeWidth="0.5" />
+            {/* Bottom triangle: Mint */}
+            <polygon points="100,100 0,100 50,50" fill="#2dd4bf" fillOpacity="0.55" stroke="#2dd4bf" strokeWidth="0.5" />
+            {/* Left triangle: Rose */}
+            <polygon points="0,100 0,0 50,50" fill="#f43f5e" fillOpacity="0.55" stroke="#f43f5e" strokeWidth="0.5" />
+            {/* Center star badge */}
+            <circle cx="50" cy="50" r="13" fill="#090d16" stroke="#ffffff" strokeWidth="1.2" />
+            <text x="50" y="55" fontSize="13" textAnchor="middle" fill="#facc15" dominantBaseline="middle">⭐</text>
+          </svg>
+        </div>
+
+        {/* Regular Grid Track Cells */}
+        {Array.from({ length: 15 }).map((_, r) =>
+          Array.from({ length: 15 }).map((__, c) => {
+            const isBaseCorner =
+              (r < 6 && c < 6) ||
+              (r < 6 && c > 8) ||
+              (r > 8 && c < 6) ||
+              (r > 8 && c > 8);
+            const isCenter = r >= 6 && r <= 8 && c >= 6 && c <= 8;
+
+            if (isBaseCorner || isCenter) return null;
+
+            const runwayColor = getRunwayColor(r, c);
+            const specialContent = getSpecialCellContent(r, c);
+
+            // Starting squares highlight
+            const mainIndex = MAIN_TRACK_COORDS.findIndex(item => item.r === r && item.c === c);
+            let cellBg = 'bg-white/[0.05] hover:bg-white/[0.1]';
+
+            if (mainIndex === 0) cellBg = 'bg-rose-600/40 border-rose-400/50';
+            else if (mainIndex === 13) cellBg = 'bg-purple-600/40 border-purple-400/50';
+            else if (mainIndex === 26) cellBg = 'bg-amber-600/40 border-amber-400/50';
+            else if (mainIndex === 39) cellBg = 'bg-teal-600/40 border-teal-400/50';
+            else if (runwayColor === 'rose') cellBg = 'bg-rose-500/40 border-rose-400/40';
+            else if (runwayColor === 'lavender') cellBg = 'bg-purple-500/40 border-purple-400/40';
+            else if (runwayColor === 'peach') cellBg = 'bg-amber-500/40 border-amber-400/40';
+            else if (runwayColor === 'mint') cellBg = 'bg-teal-500/40 border-teal-400/40';
+
+            return (
+              <div
+                key={`cell-${r}-${c}`}
+                style={{ gridRowStart: r + 1, gridColumnStart: c + 1 }}
+                className={`relative rounded flex items-center justify-center border border-white/[0.08] transition-colors ${cellBg}`}
+              >
+                {specialContent}
+              </div>
+            );
+          })
+        )}
+
+        {/* Tokens Overlay with Smooth Step-by-Step Hopping Physics */}
+        {placedTokens.map((item) => {
+          const colorCfg = COLOR_STYLES[item.playerColor];
+          const isSelectedMovable = item.isMovable;
+          const isHopping = item.isHopping;
+
+          return (
+            <motion.div
+              key={`token-${item.playerColor}-${item.token.id}`}
+              layout
+              transition={{ type: "spring", stiffness: 420, damping: 28 }}
+              style={{
+                gridRowStart: item.coord.r + 1,
+                gridColumnStart: item.coord.c + 1
+              }}
+              animate={
+                isHopping
+                  ? { scale: [1, 1.25, 1], y: [0, -8, 0] }
+                  : isSelectedMovable
+                  ? { scale: [1, 1.08, 1], y: [0, -1.5, 0] }
+                  : { scale: 1, opacity: 1, y: 0 }
+              }
+              onClick={(e) => {
+                e.stopPropagation();
+                if (isSelectedMovable) {
+                  sounds.playTokenStep();
+                  onSelectToken(item.token.id);
+                }
+              }}
+              className={`z-30 w-full h-full flex items-center justify-center touch-manipulation ${
+                isSelectedMovable ? 'cursor-pointer' : 'pointer-events-none'
+              }`}
+            >
+              <div
+                className={`relative w-5 h-5 sm:w-7 sm:h-7 rounded-full flex items-center justify-center border sm:border-2 border-white shadow-sm transition-transform active:scale-95 ${
+                  colorCfg.tokenBg
+                } ${
+                  isSelectedMovable
+                    ? 'ring-2 ring-white/90 ring-offset-1 ring-offset-slate-900 shadow-[0_0_8px_rgba(255,255,255,0.8)]'
+                    : ''
+                }`}
+              >
+                <span className="text-[9px] sm:text-xs font-bold leading-none select-none">
+                  {colorCfg.emoji}
+                </span>
+
+                {/* Subtle indicator dot on eligible token */}
+                {isSelectedMovable && (
+                  <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-emerald-400 border border-slate-900" />
+                )}
+              </div>
+            </motion.div>
+          );
+        })}
+
+      </div>
+    </div>
+  );
+};
