@@ -12,6 +12,7 @@ import { TextChatDrawer } from './components/TextChatDrawer';
 import { FloatingReactionOverlay } from './components/FloatingReactionOverlay';
 import { VictoryModal } from './components/VictoryModal';
 import { voiceChatService } from './services/webrtcVoice';
+import { App as CapacitorApp } from '@capacitor/app';
 
 const ALL_MASCOTS = ['😎', '🍕', '🎮', '🚀', '🐱', '👑', '🥰', '💖', '🐰', '🐻', '🦊', '🥑', '🎧', '☕', '✨', '👻'];
 const ALL_NICKNAMES = ['PixelKing', 'BobaQueen', 'ChaosGremlin', 'Honeybee', 'Capybara', 'Speedy', 'Noodle', 'Ghostie', 'Cupid', 'Sweetpea', 'Captain', 'VibeMaster', 'StarGazer', 'LuckyDice'];
@@ -41,13 +42,23 @@ export const App: React.FC = () => {
   const [isMuted, setIsMuted] = useState(false);
   const [inputRoomCode, setInputRoomCode] = useState('');
   const [joinModalOpen, setJoinModalOpen] = useState(false);
+  const [showLeaveModal, setShowLeaveModal] = useState(false);
+  const [homeChatBubbles, setHomeChatBubbles] = useState<Record<string, { text: string; timestamp: number }>>({});
   const [synchronizedPulse, setSynchronizedPulse] = useState(false);
   const [partnerTouch, setPartnerTouch] = useState<{ x: number; y: number } | null>(null);
 
   const roomIdRef = useRef(roomId);
+  const roomRef = useRef<Room | null>(room);
+  const gameStateRef = useRef<GameState | null>(gameState);
+
   useEffect(() => {
     roomIdRef.current = room?.id || roomId;
+    roomRef.current = room;
   }, [room, roomId]);
+
+  useEffect(() => {
+    gameStateRef.current = gameState;
+  }, [gameState]);
 
   // Check URL query parameters for ?room=CODE
   useEffect(() => {
@@ -69,6 +80,50 @@ export const App: React.FC = () => {
     const rand = ALL_NICKNAMES[Math.floor(Math.random() * ALL_NICKNAMES.length)];
     setGuestName(rand);
   };
+
+  // Browser History & Android Hardware Back Button Handling (Prevents site/app from closing accidentally)
+  useEffect(() => {
+    if (inRoom) {
+      window.history.pushState({ inRoom: true }, '', window.location.href);
+    }
+  }, [inRoom, room?.id]);
+
+  useEffect(() => {
+    const handleBackButton = () => {
+      if (joinModalOpen) {
+        setJoinModalOpen(false);
+        return;
+      }
+      if (inRoom) {
+        setShowLeaveModal(true);
+        // Push state back so browser history entry remains while dialog is open
+        window.history.pushState({ inRoom: true }, '', window.location.href);
+        return;
+      }
+    };
+
+    const handlePopState = () => {
+      handleBackButton();
+    };
+
+    window.addEventListener('popstate', handlePopState);
+
+    let capacitorListener: any = null;
+    try {
+      CapacitorApp.addListener('backButton', () => {
+        handleBackButton();
+      }).then((l) => {
+        capacitorListener = l;
+      });
+    } catch (_) {}
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      if (capacitorListener && typeof capacitorListener.remove === 'function') {
+        capacitorListener.remove();
+      }
+    };
+  }, [inRoom, joinModalOpen]);
 
   // Setup Socket Listeners
   useEffect(() => {
@@ -107,6 +162,17 @@ export const App: React.FC = () => {
       });
 
       if (!message.isSystem) {
+        // Ludo King Speech Bubble: Map sender to their player color
+        const allPlayers = gameStateRef.current?.players || roomRef.current?.players || [];
+        const sender = allPlayers.find((p) => p.id === message.senderId || p.name === message.sender);
+        if (sender) {
+          setHomeChatBubbles((prev) => ({
+            ...prev,
+            [sender.color]: { text: message.text, timestamp: Date.now() }
+          }));
+          sounds.playChatPop();
+        }
+
         setFloatingToast(message);
         setTimeout(() => setFloatingToast(null), 3600);
       }
@@ -263,12 +329,18 @@ export const App: React.FC = () => {
   };
 
   const handleLeaveRoom = () => {
-    if (confirm('Leave this room?')) {
-      if (voiceChatService.getIsActive()) {
-        voiceChatService.stopVoice();
-      }
-      window.location.href = '/';
+    setShowLeaveModal(true);
+  };
+
+  const confirmLeaveRoom = () => {
+    setShowLeaveModal(false);
+    if (voiceChatService.getIsActive()) {
+      voiceChatService.stopVoice();
     }
+    setInRoom(false);
+    setRoom(null);
+    setGameState(null);
+    window.history.pushState(null, '', '/');
   };
 
   const myPlayer = room?.players.find((p) => p.id === myPlayerId) || {
@@ -293,39 +365,41 @@ export const App: React.FC = () => {
   return (
     <AestheticBackground theme={currentTheme}>
       {/* Top Floating App Bar */}
-      <header className="w-full px-4 sm:px-8 py-3.5 flex items-center justify-between z-30">
-        <div className="flex items-center gap-2">
-          <span className="text-2xl filter drop-shadow heart-pulse">🎲</span>
-          <span className="text-xl font-extrabold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-pink-400 via-rose-300 to-purple-400">
-            LUVDO
-          </span>
-          {inRoom && room && (
-            <span className="text-xs font-mono font-bold bg-white/10 px-2.5 py-0.5 rounded-full border border-white/15 text-pink-200 ml-1">
-              {room.id}
-            </span>
-          )}
-        </div>
-
-        <div className="flex items-center gap-2 sm:gap-3">
-          {inRoom && <VoiceChatBar roomId={room?.id || ''} />}
-
-          <button
-            onClick={toggleSoundMute}
-            className="p-2 rounded-full glass-panel hover:bg-white/10 transition-colors"
-            title={isMuted ? 'Unmute Audio' : 'Mute Audio'}
-          >
-            {isMuted ? <VolumeX size={16} className="text-rose-300" /> : <Volume2 size={16} className="text-pink-200" />}
-          </button>
-
+      <header className="w-full px-2.5 sm:px-6 py-2 sm:py-3.5 flex items-center justify-between z-30 shrink-0">
+        <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
           {inRoom && (
             <button
               onClick={handleLeaveRoom}
-              className="p-2 rounded-full glass-panel hover:bg-rose-500/30 text-rose-300 transition-colors"
-              title="Leave Room"
+              className="p-1.5 sm:p-2 -ml-0.5 sm:-ml-1 rounded-full glass-panel hover:bg-white/10 active:scale-95 text-pink-200 transition-colors shrink-0 cursor-pointer"
+              title="Back / Exit Match"
             >
               <ArrowLeft size={16} />
             </button>
           )}
+
+          <div className="flex items-center gap-1 sm:gap-1.5 min-w-0">
+            <span className="text-xl sm:text-2xl filter drop-shadow heart-pulse shrink-0">🎲</span>
+            <span className="text-base sm:text-xl font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-pink-400 via-rose-300 to-purple-400 shrink-0">
+              LUVDO
+            </span>
+            {inRoom && room && (
+              <span className="text-[10px] sm:text-xs font-mono font-bold bg-white/10 px-2 py-0.5 rounded-full border border-white/15 text-pink-200 whitespace-nowrap truncate max-w-[95px] sm:max-w-none shrink-0">
+                {room.id}
+              </span>
+            )}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+          {inRoom && <VoiceChatBar roomId={room?.id || ''} className="shrink-0" />}
+
+          <button
+            onClick={toggleSoundMute}
+            className="p-1.5 sm:p-2 rounded-full glass-panel hover:bg-white/10 transition-colors shrink-0 cursor-pointer"
+            title={isMuted ? 'Unmute Audio' : 'Mute Audio'}
+          >
+            {isMuted ? <VolumeX size={15} className="text-rose-300" /> : <Volume2 size={15} className="text-pink-200" />}
+          </button>
         </div>
       </header>
 
@@ -469,19 +543,20 @@ export const App: React.FC = () => {
             )}
 
             {/* Board and Controls */}
-            <div className="w-full flex flex-col md:flex-row items-center justify-center gap-3 md:gap-6">
+            <div className="w-full flex flex-col md:flex-row items-center justify-center gap-2.5 md:gap-6">
               {/* Ludo Board */}
-              <div className="w-full max-w-[min(96vw,500px)]">
+              <div className="w-full max-w-[min(94vw,430px,46vh)]">
                 <LudoBoard
                   gameState={gameState}
                   myPlayerId={myPlayerId}
                   onSelectToken={handleSelectToken}
                   onScreenTouch={handleScreenTouch}
+                  homeChatBubbles={homeChatBubbles}
                 />
               </div>
 
               {/* Mobile Compact Dice Bar (md:hidden) */}
-              <div className="w-full max-w-[min(96vw,500px)] md:hidden">
+              <div className="w-full max-w-[min(94vw,430px)] md:hidden">
                 <DiceRoller
                   currentTurnPlayer={currentTurnPlayer}
                   isMyTurn={isMyTurn}
@@ -631,6 +706,36 @@ export const App: React.FC = () => {
                 className="flex-1 py-2.5 rounded-xl bg-pink-600 hover:bg-pink-500 disabled:opacity-40 text-white text-xs font-bold shadow-lg"
               >
                 Join Match
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Leave Room Confirmation Modal (Back Button Protection) */}
+      {showLeaveModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
+          <div className="w-full max-w-sm rounded-3xl glass-panel bg-slate-950/95 border border-pink-500/40 p-6 text-center space-y-4 shadow-2xl">
+            <span className="text-4xl block animate-bounce">🚪</span>
+            <h3 className="text-lg font-black text-white">Leave Match?</h3>
+            <p className="text-xs text-pink-200/80 leading-relaxed">
+              Are you sure you want to exit the current room? You can rejoin anytime using code <span className="font-mono font-bold text-pink-300">{room?.id}</span>.
+            </p>
+            <div className="flex items-center gap-3 pt-2">
+              <button
+                onClick={() => {
+                  setShowLeaveModal(false);
+                  window.history.pushState({ inRoom: true }, '', window.location.href);
+                }}
+                className="flex-1 py-2.5 px-4 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs transition-all active:scale-95 cursor-pointer"
+              >
+                Stay & Play
+              </button>
+              <button
+                onClick={confirmLeaveRoom}
+                className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-600 hover:to-red-700 text-white font-bold text-xs shadow-lg shadow-rose-500/30 transition-all active:scale-95 cursor-pointer"
+              >
+                Leave Match
               </button>
             </div>
           </div>

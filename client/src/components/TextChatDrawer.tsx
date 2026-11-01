@@ -34,6 +34,23 @@ export const TextChatDrawer: React.FC<TextChatDrawerProps> = ({
   const [inputText, setInputText] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  const toggleOpen = (open: boolean) => {
+    setIsOpen(open);
+    if (open) {
+      window.history.pushState({ modal: 'chat' }, '');
+    }
+  };
+
+  useEffect(() => {
+    const handlePop = () => {
+      if (isOpen) {
+        setIsOpen(false);
+      }
+    };
+    window.addEventListener('popstate', handlePop);
+    return () => window.removeEventListener('popstate', handlePop);
+  }, [isOpen]);
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -62,8 +79,8 @@ export const TextChatDrawer: React.FC<TextChatDrawerProps> = ({
     <>
       {/* Floating Toggle Button */}
       <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-16 right-3 sm:bottom-6 sm:right-6 z-40 p-2.5 sm:p-3 rounded-full bg-gradient-to-r from-pink-500 to-purple-600 text-white shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center justify-center border border-white/30"
+        onClick={() => toggleOpen(!isOpen)}
+        className="fixed bottom-14 right-3 sm:bottom-6 sm:right-6 z-40 p-2.5 sm:p-3 rounded-full bg-gradient-to-r from-pink-500 to-purple-600 text-white shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center justify-center border border-white/30 cursor-pointer"
         title="Open Live Chat"
       >
         <MessageCircle size={20} />

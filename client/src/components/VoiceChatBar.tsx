@@ -69,31 +69,31 @@ export const VoiceChatBar: React.FC<VoiceChatBarProps> = ({ roomId, className = 
       )}
 
       {isConnected ? (
-        <div className="flex items-center gap-1.5 sm:gap-2 px-2.5 py-1.5 rounded-full bg-slate-900/85 border border-emerald-400/50 shadow-lg shadow-emerald-950/50 backdrop-blur-md">
+        <div className="flex items-center gap-1 sm:gap-1.5 px-2 py-1 rounded-full bg-slate-900/85 border border-emerald-400/50 shadow-md backdrop-blur-md shrink-0 whitespace-nowrap">
           {/* Mute/Unmute Toggle Button */}
           <button
             onClick={handleToggleMute}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full font-bold text-xs transition-all active:scale-95 touch-manipulation select-none cursor-pointer ${
+            className={`flex items-center gap-1 px-2.5 py-1 rounded-full font-bold text-[11px] sm:text-xs transition-all active:scale-95 touch-manipulation select-none cursor-pointer ${
               isMuted
                 ? 'bg-rose-500/30 text-rose-200 border border-rose-400/50 hover:bg-rose-500/40'
-                : 'bg-emerald-500 text-white shadow-md shadow-emerald-500/40 hover:bg-emerald-400'
+                : 'bg-emerald-500 text-white shadow-sm shadow-emerald-500/40 hover:bg-emerald-400'
             }`}
             title={isMuted ? 'Unmute Microphone' : 'Mute Microphone'}
           >
             {isMuted ? (
               <>
-                <MicOff size={15} className="text-rose-300" />
+                <MicOff size={13} className="text-rose-300" />
                 <span>Muted</span>
               </>
             ) : (
               <>
-                <Mic size={15} className="text-white animate-pulse" />
-                <span>Mic Live</span>
+                <Mic size={13} className="text-white animate-pulse" />
+                <span>Live</span>
                 {/* Dynamic live equalizer waves */}
                 <div className="flex items-center gap-0.5 ml-0.5">
-                  <span className="w-0.5 h-3 bg-white rounded-full animate-bounce" style={{ animationDelay: '0.05s' }} />
-                  <span className="w-0.5 h-4 bg-white rounded-full animate-bounce" style={{ animationDelay: '0.15s' }} />
-                  <span className="w-0.5 h-2.5 bg-white rounded-full animate-bounce" style={{ animationDelay: '0.25s' }} />
+                  <span className="w-0.5 h-2.5 bg-white rounded-full animate-bounce" style={{ animationDelay: '0.05s' }} />
+                  <span className="w-0.5 h-3.5 bg-white rounded-full animate-bounce" style={{ animationDelay: '0.15s' }} />
+                  <span className="w-0.5 h-2 bg-white rounded-full animate-bounce" style={{ animationDelay: '0.25s' }} />
                 </div>
               </>
             )}
@@ -102,34 +102,35 @@ export const VoiceChatBar: React.FC<VoiceChatBarProps> = ({ roomId, className = 
           {/* Leave Voice Button */}
           <button
             onClick={handleToggleVoice}
-            className="p-1.5 sm:p-2 rounded-full bg-rose-600/30 hover:bg-rose-600/60 border border-rose-400/30 text-rose-200 hover:text-white transition-all active:scale-95 touch-manipulation cursor-pointer"
+            className="p-1 sm:p-1.5 rounded-full bg-rose-600/30 hover:bg-rose-600/60 border border-rose-400/30 text-rose-200 hover:text-white transition-all active:scale-95 touch-manipulation cursor-pointer"
             title="Leave Voice Chat"
           >
-            <PhoneOff size={14} />
+            <PhoneOff size={13} />
           </button>
         </div>
       ) : (
-        /* Mobile-Enhanced Join Voice Button */
+        /* Mobile-Enhanced Single-Line Join Voice Button */
         <button
           onClick={handleToggleVoice}
           disabled={isConnecting}
-          className="relative group flex items-center gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-full bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 hover:from-emerald-400 hover:to-teal-400 text-white font-extrabold text-xs sm:text-sm shadow-lg shadow-emerald-500/25 border border-emerald-300/40 transition-all active:scale-95 cursor-pointer touch-manipulation select-none disabled:opacity-75 disabled:pointer-events-none"
-          title="Join Live Voice Chat (Ultra-low latency)"
+          className="relative group flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-full bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 hover:from-emerald-400 hover:to-teal-400 text-white font-black text-[11px] sm:text-xs shadow-md shadow-emerald-500/25 border border-emerald-300/40 transition-all active:scale-95 cursor-pointer touch-manipulation select-none disabled:opacity-75 disabled:pointer-events-none whitespace-nowrap shrink-0"
+          title="Join Live Voice Chat"
         >
           {isConnecting ? (
             <>
-              <Loader2 size={15} className="animate-spin text-white" />
+              <Loader2 size={13} className="animate-spin text-white" />
               <span className="tracking-wide">Connecting...</span>
             </>
           ) : (
             <>
               {/* Radar beacon pulsing indicator */}
-              <span className="relative flex h-2.5 w-2.5 shrink-0">
+              <span className="relative flex h-2 w-2 shrink-0">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-80" />
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-white shadow-sm" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-white shadow-sm" />
               </span>
-              <PhoneCall size={15} className="text-white drop-shadow shrink-0" />
-              <span className="tracking-wide">Join Live Voice</span>
+              <PhoneCall size={13} className="text-white drop-shadow shrink-0" />
+              <span className="tracking-wide hidden xs:inline sm:inline">Join Voice</span>
+              <span className="tracking-wide inline xs:hidden sm:hidden">Voice</span>
             </>
           )}
         </button>

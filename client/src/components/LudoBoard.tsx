@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { GameState, PlayerColor, Token } from '../types/game';
 import {
   MAIN_TRACK_COORDS,
@@ -16,6 +16,7 @@ interface LudoBoardProps {
   myPlayerId: string;
   onSelectToken: (tokenId: number) => void;
   onScreenTouch?: (x: number, y: number) => void;
+  homeChatBubbles?: Record<string, { text: string; timestamp: number } | null>;
 }
 
 // Traditional 8 safe positions on the 52-tile track
@@ -25,7 +26,8 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
   gameState,
   myPlayerId,
   onSelectToken,
-  onScreenTouch
+  onScreenTouch,
+  homeChatBubbles
 }) => {
   const currentPlayer = gameState.players[gameState.currentTurnIndex];
   const isMyTurn = currentPlayer?.id === myPlayerId;
@@ -154,7 +156,7 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
       <div className="relative w-full h-full grid grid-cols-15 grid-rows-15 gap-[1px] sm:gap-[2px] bg-slate-950/80 p-1 rounded-xl sm:rounded-2xl border border-white/10 overflow-hidden">
 
         {/* 1. Base Corner: Rose (Top-Left, 0..5, 0..5) */}
-        <div className="col-start-1 col-span-6 row-start-1 row-span-6 rounded-lg sm:rounded-xl bg-gradient-to-br from-rose-950/90 via-pink-900/70 to-rose-900/50 p-1.5 sm:p-2 border border-rose-500/40 flex flex-col justify-between overflow-hidden">
+        <div className="relative col-start-1 col-span-6 row-start-1 row-span-6 rounded-lg sm:rounded-xl bg-gradient-to-br from-rose-950/90 via-pink-900/70 to-rose-900/50 p-1.5 sm:p-2 border border-rose-500/40 flex flex-col justify-between">
           <div className="flex items-center justify-between text-[10px] sm:text-xs text-rose-300 font-bold px-0.5 sm:px-1">
             <span className="truncate max-w-[70px] sm:max-w-none flex items-center gap-1">
               🔴 {gameState.players.find(p => p.color === 'rose')?.name || 'Rose'}
@@ -170,10 +172,29 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
               ))}
             </div>
           </div>
+
+          {/* Ludo King Speech Bubble: Rose */}
+          <AnimatePresence>
+            {homeChatBubbles?.rose && (Date.now() - homeChatBubbles.rose.timestamp < 4500) && (
+              <motion.div
+                key={`bubble-rose-${homeChatBubbles.rose.timestamp}`}
+                initial={{ scale: 0, opacity: 0, y: 8 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.5, opacity: 0 }}
+                transition={{ type: 'spring', stiffness: 500, damping: 22 }}
+                className="absolute top-1 left-2 sm:top-2 sm:left-3 z-40 pointer-events-none max-w-[130px] sm:max-w-[160px] filter drop-shadow-[0_8px_20px_rgba(0,0,0,0.85)]"
+              >
+                <div className="relative px-2.5 py-1.5 rounded-2xl bg-white text-slate-900 border-2 border-rose-500 font-black text-[10px] sm:text-xs leading-snug shadow-2xl break-words text-center">
+                  <span>{homeChatBubbles.rose.text}</span>
+                  <div className="absolute -bottom-1.5 left-4 w-2.5 h-2.5 bg-white border-r-2 border-b-2 border-rose-500 transform rotate-45" />
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         {/* 2. Base Corner: Lavender (Top-Right, 0..5, 9..14) */}
-        <div className="col-start-10 col-span-6 row-start-1 row-span-6 rounded-lg sm:rounded-xl bg-gradient-to-br from-purple-950/90 via-indigo-900/70 to-purple-900/50 p-1.5 sm:p-2 border border-purple-500/40 flex flex-col justify-between overflow-hidden">
+        <div className="relative col-start-10 col-span-6 row-start-1 row-span-6 rounded-lg sm:rounded-xl bg-gradient-to-br from-purple-950/90 via-indigo-900/70 to-purple-900/50 p-1.5 sm:p-2 border border-purple-500/40 flex flex-col justify-between">
           <div className="flex items-center justify-between text-[10px] sm:text-xs text-purple-300 font-bold px-0.5 sm:px-1">
             <span className="truncate max-w-[70px] sm:max-w-none flex items-center gap-1">
               🟣 {gameState.players.find(p => p.color === 'lavender')?.name || 'Lavender'}
@@ -189,10 +210,29 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
               ))}
             </div>
           </div>
+
+          {/* Ludo King Speech Bubble: Lavender */}
+          <AnimatePresence>
+            {homeChatBubbles?.lavender && (Date.now() - homeChatBubbles.lavender.timestamp < 4500) && (
+              <motion.div
+                key={`bubble-lavender-${homeChatBubbles.lavender.timestamp}`}
+                initial={{ scale: 0, opacity: 0, y: 8 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.5, opacity: 0 }}
+                transition={{ type: 'spring', stiffness: 500, damping: 22 }}
+                className="absolute top-1 right-2 sm:top-2 sm:right-3 z-40 pointer-events-none max-w-[130px] sm:max-w-[160px] filter drop-shadow-[0_8px_20px_rgba(0,0,0,0.85)]"
+              >
+                <div className="relative px-2.5 py-1.5 rounded-2xl bg-white text-slate-900 border-2 border-purple-500 font-black text-[10px] sm:text-xs leading-snug shadow-2xl break-words text-center">
+                  <span>{homeChatBubbles.lavender.text}</span>
+                  <div className="absolute -bottom-1.5 right-4 w-2.5 h-2.5 bg-white border-r-2 border-b-2 border-purple-500 transform rotate-45" />
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         {/* 3. Base Corner: Peach (Bottom-Right, 9..14, 9..14) */}
-        <div className="col-start-10 col-span-6 row-start-10 row-span-6 rounded-lg sm:rounded-xl bg-gradient-to-br from-amber-950/90 via-orange-900/70 to-amber-900/50 p-1.5 sm:p-2 border border-amber-500/40 flex flex-col justify-between overflow-hidden">
+        <div className="relative col-start-10 col-span-6 row-start-10 row-span-6 rounded-lg sm:rounded-xl bg-gradient-to-br from-amber-950/90 via-orange-900/70 to-amber-900/50 p-1.5 sm:p-2 border border-amber-500/40 flex flex-col justify-between">
           <div className="flex items-center justify-between text-[10px] sm:text-xs text-amber-300 font-bold px-0.5 sm:px-1">
             <span className="truncate max-w-[70px] sm:max-w-none flex items-center gap-1">
               🟡 {gameState.players.find(p => p.color === 'peach')?.name || 'Peach'}
@@ -208,10 +248,29 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
               ))}
             </div>
           </div>
+
+          {/* Ludo King Speech Bubble: Peach */}
+          <AnimatePresence>
+            {homeChatBubbles?.peach && (Date.now() - homeChatBubbles.peach.timestamp < 4500) && (
+              <motion.div
+                key={`bubble-peach-${homeChatBubbles.peach.timestamp}`}
+                initial={{ scale: 0, opacity: 0, y: -8 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.5, opacity: 0 }}
+                transition={{ type: 'spring', stiffness: 500, damping: 22 }}
+                className="absolute bottom-1 right-2 sm:bottom-2 sm:right-3 z-40 pointer-events-none max-w-[130px] sm:max-w-[160px] filter drop-shadow-[0_8px_20px_rgba(0,0,0,0.85)]"
+              >
+                <div className="relative px-2.5 py-1.5 rounded-2xl bg-white text-slate-900 border-2 border-amber-500 font-black text-[10px] sm:text-xs leading-snug shadow-2xl break-words text-center">
+                  <span>{homeChatBubbles.peach.text}</span>
+                  <div className="absolute -top-1.5 right-4 w-2.5 h-2.5 bg-white border-l-2 border-t-2 border-amber-500 transform rotate-45" />
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         {/* 4. Base Corner: Mint (Bottom-Left, 9..14, 0..5) */}
-        <div className="col-start-1 col-span-6 row-start-10 row-span-6 rounded-lg sm:rounded-xl bg-gradient-to-br from-teal-950/90 via-emerald-900/70 to-teal-900/50 p-1.5 sm:p-2 border border-teal-500/40 flex flex-col justify-between overflow-hidden">
+        <div className="relative col-start-1 col-span-6 row-start-10 row-span-6 rounded-lg sm:rounded-xl bg-gradient-to-br from-teal-950/90 via-emerald-900/70 to-teal-900/50 p-1.5 sm:p-2 border border-teal-500/40 flex flex-col justify-between">
           <div className="flex items-center justify-between text-[10px] sm:text-xs text-teal-300 font-bold px-0.5 sm:px-1">
             <span className="truncate max-w-[70px] sm:max-w-none flex items-center gap-1">
               🟢 {gameState.players.find(p => p.color === 'mint')?.name || 'Mint'}
@@ -227,6 +286,25 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
               ))}
             </div>
           </div>
+
+          {/* Ludo King Speech Bubble: Mint */}
+          <AnimatePresence>
+            {homeChatBubbles?.mint && (Date.now() - homeChatBubbles.mint.timestamp < 4500) && (
+              <motion.div
+                key={`bubble-mint-${homeChatBubbles.mint.timestamp}`}
+                initial={{ scale: 0, opacity: 0, y: -8 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.5, opacity: 0 }}
+                transition={{ type: 'spring', stiffness: 500, damping: 22 }}
+                className="absolute bottom-1 left-2 sm:bottom-2 sm:left-3 z-40 pointer-events-none max-w-[130px] sm:max-w-[160px] filter drop-shadow-[0_8px_20px_rgba(0,0,0,0.85)]"
+              >
+                <div className="relative px-2.5 py-1.5 rounded-2xl bg-white text-slate-900 border-2 border-teal-500 font-black text-[10px] sm:text-xs leading-snug shadow-2xl break-words text-center">
+                  <span>{homeChatBubbles.mint.text}</span>
+                  <div className="absolute -top-1.5 left-4 w-2.5 h-2.5 bg-white border-l-2 border-t-2 border-teal-500 transform rotate-45" />
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         {/* Center: Traditional 4-Triangle Ludo Home (rows 6..8, cols 6..8) */}

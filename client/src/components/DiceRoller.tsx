@@ -58,7 +58,7 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({
       const timer = setTimeout(() => {
         setIsTumbling(false);
         setDisplayedValue(diceValue);
-      }, 900);
+      }, 850);
 
       return () => clearTimeout(timer);
     }
@@ -129,29 +129,34 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({
   const halfSize = cubeSize / 2;
 
   return (
-    <div className={`flex ${compact ? 'flex-row items-center gap-3 px-3 py-2' : 'flex-col items-center justify-center p-3 sm:p-4'} rounded-2xl glass-panel shadow-xl border border-white/15 select-none touch-manipulation`}>
+    <div className={`flex ${compact ? 'flex-row items-center justify-between px-3.5 py-2' : 'flex-col items-center justify-center p-3 sm:p-4'} rounded-2xl glass-panel shadow-xl border border-white/15 select-none touch-manipulation`}>
       {/* Player Turn Status */}
-      <div className={`flex items-center gap-1.5 ${compact ? 'flex-col items-start' : 'mb-2'}`}>
+      <div className={`flex ${compact ? 'flex-col items-start' : 'items-center gap-1.5 mb-2'}`}>
         <div className="flex items-center gap-1.5">
-          <span className="text-lg sm:text-xl">{currentTurnPlayer.avatar}</span>
-          <span className={`text-xs sm:text-sm font-bold ${colorStyle.textColor} truncate max-w-[110px]`}>
+          <span className="text-xl sm:text-2xl">{currentTurnPlayer.avatar}</span>
+          <span className={`text-xs sm:text-sm font-black ${colorStyle.textColor} truncate max-w-[130px]`}>
             {isMyTurn ? "Your Turn" : currentTurnPlayer.name}
           </span>
+          {canRoll && (
+            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/30 text-emerald-300 border border-emerald-400/40 animate-pulse">
+              ROLL
+            </span>
+          )}
         </div>
 
         {compact && (
-          <span className="text-[10px] text-white/60">
-            {canRoll ? "Tap to Roll" : diceValue ? `Rolled ${diceValue}` : "Waiting..."}
+          <span className="text-[11px] text-white/70 font-medium">
+            {canRoll ? "👉 Tap dice to roll!" : diceValue ? `Rolled ${diceValue}` : "Waiting for turn..."}
           </span>
         )}
       </div>
 
       {/* 3D Dice Stage with Perspective */}
-      <div className="relative flex flex-col items-center justify-center py-2">
+      <div className="relative flex flex-col items-center justify-center py-1">
         <div
           onClick={canRoll ? onRoll : undefined}
           className={`relative cursor-pointer transition-transform duration-200 active:scale-95 ${
-            canRoll ? 'cursor-pointer hover:scale-105' : 'cursor-not-allowed opacity-90'
+            canRoll ? 'cursor-pointer hover:scale-105 filter drop-shadow-[0_0_12px_rgba(255,255,255,0.4)]' : 'cursor-not-allowed opacity-90'
           }`}
           style={{
             width: `${cubeSize}px`,
@@ -165,11 +170,11 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({
             style={{
               transformStyle: 'preserve-3d',
               transform: `rotateX(${rotation.x}deg) rotateY(${rotation.y}deg) rotateZ(${rotation.z}deg) ${
-                isTumbling ? 'translateY(-22px) scale(1.08)' : 'translateY(0px) scale(1)'
+                isTumbling ? 'translateY(-18px) scale(1.08)' : 'translateY(0px) scale(1)'
               }`,
               transition: isTumbling
-                ? 'transform 0.9s cubic-bezier(0.18, 0.89, 0.32, 1.28)'
-                : 'transform 0.3s ease-out'
+                ? 'transform 0.85s cubic-bezier(0.22, 1, 0.36, 1)'
+                : 'transform 0.25s ease-out'
             }}
           >
             {/* Common Face Style */}

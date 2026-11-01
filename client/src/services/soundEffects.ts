@@ -55,33 +55,33 @@ class SoundManager {
     return this.isMuted;
   }
 
-  // Realistic rolling dice sound with acoustic wood impacts & mobile vibration
+  // Realistic rolling dice sound with acoustic wood impacts & mobile vibration, synchronized to 850ms animation
   public playDiceRoll() {
     if (this.isMuted) return;
     this.initContext();
     const ctx = this.ctx;
     if (!ctx) return;
 
-    // Mobile physical vibration if supported
+    // Mobile physical vibration timed with bounces
     if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
       try {
-        navigator.vibrate([15, 30, 20, 40, 60]);
+        navigator.vibrate([15, 30, 20, 40, 25, 60]);
       } catch {
         // ignore
       }
     }
 
-    // Natural physics deceleration timings (in ms)
-    const bounceDelays = [0, 45, 100, 165, 245, 340, 450, 580, 730];
+    // Natural physics deceleration rattle timings (in ms) leading to a decisive landing at 850ms
+    const bounceDelays = [0, 50, 110, 180, 260, 360, 480, 620, 740];
 
     bounceDelays.forEach((delay, index) => {
       setTimeout(() => {
         if (!ctx) return;
         const now = ctx.currentTime;
-        const decayFactor = 1 - (index / bounceDelays.length) * 0.45; // softer as it settles
+        const decayFactor = 1 - (index / bounceDelays.length) * 0.4;
 
-        // 1. Snappy impact noise (dice edge hitting wood/felt)
-        const bufferSize = ctx.sampleRate * 0.035;
+        // Snappy impact noise (dice edge rattling)
+        const bufferSize = Math.floor(ctx.sampleRate * 0.03);
         const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
         const output = noiseBuffer.getChannelData(0);
         for (let i = 0; i < bufferSize; i++) {
@@ -97,33 +97,97 @@ class SoundManager {
         noiseFilter.Q.setValueAtTime(3.5, now);
 
         const noiseGain = ctx.createGain();
-        noiseGain.gain.setValueAtTime(0.3 * decayFactor, now);
-        noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.035);
+        noiseGain.gain.setValueAtTime(0.28 * decayFactor, now);
+        noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.03);
 
         noise.connect(noiseFilter);
         noiseFilter.connect(noiseGain);
         noiseGain.connect(ctx.destination);
         noise.start(now);
 
-        // 2. Body resonance knock (hollow plastic/wood thud audible on phones)
+        // Body resonance knock
         const osc = ctx.createOscillator();
         const oscGain = ctx.createGain();
         osc.type = 'triangle';
 
-        const startFreq = 420 + Math.random() * 120;
+        const startFreq = 400 + Math.random() * 100;
         osc.frequency.setValueAtTime(startFreq, now);
-        osc.frequency.exponentialRampToValueAtTime(110, now + 0.05);
+        osc.frequency.exponentialRampToValueAtTime(120, now + 0.04);
 
-        oscGain.gain.setValueAtTime(0.22 * decayFactor, now);
-        oscGain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+        oscGain.gain.setValueAtTime(0.2 * decayFactor, now);
+        oscGain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
 
         osc.connect(oscGain);
         oscGain.connect(ctx.destination);
 
         osc.start(now);
-        osc.stop(now + 0.05);
+        osc.stop(now + 0.04);
       }, delay);
     });
+
+    // Decisive final solid landing thud at exactly 850ms (when die lands face-up)
+    setTimeout(() => {
+      if (!ctx) return;
+      const now = ctx.currentTime;
+
+      // Solid tactile thump
+      const osc = ctx.createOscillator();
+      const oscGain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(260, now);
+      osc.frequency.exponentialRampToValueAtTime(80, now + 0.09);
+
+      oscGain.gain.setValueAtTime(0.4, now);
+      oscGain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+
+      osc.connect(oscGain);
+      oscGain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.09);
+
+      // Final wood click
+      const clickBuf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.02), ctx.sampleRate);
+      const data = clickBuf.getChannelData(0);
+      for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * Math.exp(-i / 80);
+      const clickSrc = ctx.createBufferSource();
+      clickSrc.buffer = clickBuf;
+      const clickGain = ctx.createGain();
+      clickGain.gain.setValueAtTime(0.25, now);
+      clickSrc.connect(clickGain);
+      clickGain.connect(ctx.destination);
+      clickSrc.start(now);
+    }, 850);
+  }
+
+  // Playful pop sound when a chat bubble appears on a player's home base
+  public playChatPop() {
+    if (this.isMuted) return;
+    this.initContext();
+    const ctx = this.ctx;
+    if (!ctx) return;
+
+    if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+      try {
+        navigator.vibrate(15);
+      } catch {
+        // ignore
+      }
+    }
+
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(380, now);
+    osc.frequency.exponentialRampToValueAtTime(850, now + 0.08);
+
+    gain.gain.setValueAtTime(0.25, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.09);
   }
 
   // Gentle token step chime (crystal kalimba)
