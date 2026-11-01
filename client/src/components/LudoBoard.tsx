@@ -207,24 +207,6 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
             <div className="h-5" />
           )}
 
-          {/* 4 Sunken Token Slots, spaced with proper 2-cell gap matching BASE_SLOTS_COORDS */}
-          <div className={`absolute inset-0 grid grid-cols-6 grid-rows-6 p-1.5 sm:p-2 pointer-events-none ${
-            !rosePlayer ? 'opacity-20' : ''
-          }`}>
-            <div className="col-start-2 row-start-2 flex items-center justify-center">
-              <div className="w-5 h-5 sm:w-7 sm:h-7 rounded-full border border-rose-400/50 bg-rose-950/70 shadow-inner flex items-center justify-center" />
-            </div>
-            <div className="col-start-5 row-start-2 flex items-center justify-center">
-              <div className="w-5 h-5 sm:w-7 sm:h-7 rounded-full border border-rose-400/50 bg-rose-950/70 shadow-inner flex items-center justify-center" />
-            </div>
-            <div className="col-start-2 row-start-5 flex items-center justify-center">
-              <div className="w-5 h-5 sm:w-7 sm:h-7 rounded-full border border-rose-400/50 bg-rose-950/70 shadow-inner flex items-center justify-center" />
-            </div>
-            <div className="col-start-5 row-start-5 flex items-center justify-center">
-              <div className="w-5 h-5 sm:w-7 sm:h-7 rounded-full border border-rose-400/50 bg-rose-950/70 shadow-inner flex items-center justify-center" />
-            </div>
-          </div>
-
           {/* Ludo King Speech Bubble: Rose */}
           <AnimatePresence>
             {rosePlayer && homeChatBubbles?.rose && (
@@ -269,24 +251,6 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
           ) : (
             <div className="h-5" />
           )}
-
-          {/* 4 Sunken Token Slots, spaced with proper 2-cell gap matching BASE_SLOTS_COORDS */}
-          <div className={`absolute inset-0 grid grid-cols-6 grid-rows-6 p-1.5 sm:p-2 pointer-events-none ${
-            !lavenderPlayer ? 'opacity-20' : ''
-          }`}>
-            <div className="col-start-2 row-start-2 flex items-center justify-center">
-              <div className="w-5 h-5 sm:w-7 sm:h-7 rounded-full border border-purple-400/50 bg-purple-950/70 shadow-inner flex items-center justify-center" />
-            </div>
-            <div className="col-start-5 row-start-2 flex items-center justify-center">
-              <div className="w-5 h-5 sm:w-7 sm:h-7 rounded-full border border-purple-400/50 bg-purple-950/70 shadow-inner flex items-center justify-center" />
-            </div>
-            <div className="col-start-2 row-start-5 flex items-center justify-center">
-              <div className="w-5 h-5 sm:w-7 sm:h-7 rounded-full border border-purple-400/50 bg-purple-950/70 shadow-inner flex items-center justify-center" />
-            </div>
-            <div className="col-start-5 row-start-5 flex items-center justify-center">
-              <div className="w-5 h-5 sm:w-7 sm:h-7 rounded-full border border-purple-400/50 bg-purple-950/70 shadow-inner flex items-center justify-center" />
-            </div>
-          </div>
 
           {/* Ludo King Speech Bubble: Lavender */}
           <AnimatePresence>
@@ -333,24 +297,6 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
             <div className="h-5" />
           )}
 
-          {/* 4 Sunken Token Slots, spaced with proper 2-cell gap matching BASE_SLOTS_COORDS */}
-          <div className={`absolute inset-0 grid grid-cols-6 grid-rows-6 p-1.5 sm:p-2 pointer-events-none ${
-            !peachPlayer ? 'opacity-20' : ''
-          }`}>
-            <div className="col-start-2 row-start-2 flex items-center justify-center">
-              <div className="w-5 h-5 sm:w-7 sm:h-7 rounded-full border border-amber-400/50 bg-amber-950/70 shadow-inner flex items-center justify-center" />
-            </div>
-            <div className="col-start-5 row-start-2 flex items-center justify-center">
-              <div className="w-5 h-5 sm:w-7 sm:h-7 rounded-full border border-amber-400/50 bg-amber-950/70 shadow-inner flex items-center justify-center" />
-            </div>
-            <div className="col-start-2 row-start-5 flex items-center justify-center">
-              <div className="w-5 h-5 sm:w-7 sm:h-7 rounded-full border border-amber-400/50 bg-amber-950/70 shadow-inner flex items-center justify-center" />
-            </div>
-            <div className="col-start-5 row-start-5 flex items-center justify-center">
-              <div className="w-5 h-5 sm:w-7 sm:h-7 rounded-full border border-amber-400/50 bg-amber-950/70 shadow-inner flex items-center justify-center" />
-            </div>
-          </div>
-
           {/* Ludo King Speech Bubble: Peach */}
           <AnimatePresence>
             {peachPlayer && homeChatBubbles?.peach && (
@@ -395,24 +341,6 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
           ) : (
             <div className="h-5" />
           )}
-
-          {/* 4 Sunken Token Slots, spaced with proper 2-cell gap matching BASE_SLOTS_COORDS */}
-          <div className={`absolute inset-0 grid grid-cols-6 grid-rows-6 p-1.5 sm:p-2 pointer-events-none ${
-            !mintPlayer ? 'opacity-20' : ''
-          }`}>
-            <div className="col-start-2 row-start-2 flex items-center justify-center">
-              <div className="w-5 h-5 sm:w-7 sm:h-7 rounded-full border border-teal-400/50 bg-teal-950/70 shadow-inner flex items-center justify-center" />
-            </div>
-            <div className="col-start-5 row-start-2 flex items-center justify-center">
-              <div className="w-5 h-5 sm:w-7 sm:h-7 rounded-full border border-teal-400/50 bg-teal-950/70 shadow-inner flex items-center justify-center" />
-            </div>
-            <div className="col-start-2 row-start-5 flex items-center justify-center">
-              <div className="w-5 h-5 sm:w-7 sm:h-7 rounded-full border border-teal-400/50 bg-teal-950/70 shadow-inner flex items-center justify-center" />
-            </div>
-            <div className="col-start-5 row-start-5 flex items-center justify-center">
-              <div className="w-5 h-5 sm:w-7 sm:h-7 rounded-full border border-teal-400/50 bg-teal-950/70 shadow-inner flex items-center justify-center" />
-            </div>
-          </div>
 
           {/* Ludo King Speech Bubble: Mint */}
           <AnimatePresence>
@@ -491,6 +419,43 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
           })
         )}
 
+        {/* Base Sunken Token Slot Circles (Directly on 15x15 grid for 100% exact alignment with tokens) */}
+        {(['rose', 'lavender', 'peach', 'mint'] as PlayerColor[]).map((col) => {
+          const player = gameState.players.find(p => p.color === col);
+          const slots = BASE_SLOTS_COORDS[col];
+          const slotBg =
+            col === 'rose'
+              ? 'border-rose-400/60 bg-rose-950/70 shadow-inner'
+              : col === 'lavender'
+              ? 'border-purple-400/60 bg-purple-950/70 shadow-inner'
+              : col === 'peach'
+              ? 'border-amber-400/60 bg-amber-950/70 shadow-inner'
+              : 'border-teal-400/60 bg-teal-950/70 shadow-inner';
+
+          const dotBg =
+            col === 'rose' ? 'bg-rose-400/50' :
+            col === 'lavender' ? 'bg-purple-400/50' :
+            col === 'peach' ? 'bg-amber-400/50' :
+            'bg-teal-400/50';
+
+          return slots.map((coord, slotIdx) => (
+            <div
+              key={`base-slot-${col}-${slotIdx}`}
+              style={{
+                gridRowStart: coord.r + 1,
+                gridColumnStart: coord.c + 1
+              }}
+              className={`z-10 w-full h-full flex items-center justify-center pointer-events-none ${
+                !player ? 'opacity-25' : ''
+              }`}
+            >
+              <div className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full border ${slotBg} flex items-center justify-center`}>
+                <div className={`w-1.5 h-1.5 rounded-full ${dotBg}`} />
+              </div>
+            </div>
+          ));
+        })}
+
         {/* Tokens Overlay with Fast Hopping & Reverse Rewinding Kill Animation */}
         {placedTokens.map((item) => {
           const colorCfg = COLOR_STYLES[item.playerColor];
@@ -540,6 +505,11 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
                     : ''
                 }`}
               >
+                {/* Expanded touch target for effortless tapping on mobile */}
+                {isSelectedMovable && (
+                  <div className="absolute -inset-3 sm:-inset-2 rounded-full cursor-pointer -z-10" />
+                )}
+
                 <span className="text-[9px] sm:text-xs font-bold leading-none select-none">
                   {colorCfg.emoji}
                 </span>

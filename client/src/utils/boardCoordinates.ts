@@ -97,29 +97,29 @@ export const RUNWAY_COORDS: Record<PlayerColor, GridCoord[]> = {
 export const BASE_SLOTS_COORDS: Record<PlayerColor, GridCoord[]> = {
   // Top-Left corner (Rose)
   rose: [
-    { r: 1, c: 1 },
-    { r: 1, c: 4 },
+    { r: 2, c: 1 },
+    { r: 2, c: 4 },
     { r: 4, c: 1 },
     { r: 4, c: 4 }
   ],
   // Top-Right corner (Lavender)
   lavender: [
-    { r: 1, c: 10 },
-    { r: 1, c: 13 },
+    { r: 2, c: 10 },
+    { r: 2, c: 13 },
     { r: 4, c: 10 },
     { r: 4, c: 13 }
   ],
   // Bottom-Right corner (Peach)
   peach: [
-    { r: 10, c: 10 },
-    { r: 10, c: 13 },
+    { r: 11, c: 10 },
+    { r: 11, c: 13 },
     { r: 13, c: 10 },
     { r: 13, c: 13 }
   ],
   // Bottom-Left corner (Mint)
   mint: [
-    { r: 10, c: 1 },
-    { r: 10, c: 4 },
+    { r: 11, c: 1 },
+    { r: 11, c: 4 },
     { r: 13, c: 1 },
     { r: 13, c: 4 }
   ]
