@@ -43,10 +43,10 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
 
   // Track previous progress and active hop
   const prevProgressRef = useRef<Record<string, number>>({});
-  const [hoppingToken, setHoppingToken] = useState<{ key: string; step: number } | null>(null);
+  const [hoppingToken, setHoppingToken] = useState<{ key: string; step: number; isRewind?: boolean } | null>(null);
   const activeTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
-  // Step-by-step walking animation runner
+  // Step-by-step walking & reverse rewinding kill animation runner
   useEffect(() => {
     // Clear any previous running timers
     activeTimersRef.current.forEach(t => clearTimeout(t));
@@ -62,26 +62,42 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
         prevProgressRef.current[key] = targetProg;
 
         if (prevProg !== undefined && targetProg > prevProg && prevProg >= 0) {
-          // Walking forward step-by-step
+          // Walking forward step-by-step (fast & responsive 75-80ms per step)
           const stepsCount = targetProg - prevProg;
+          const stepSpeed = Math.max(55, Math.min(80, Math.floor(420 / stepsCount)));
           for (let step = 1; step <= stepsCount; step++) {
             const nextVal = prevProg + step;
             const timer = setTimeout(() => {
-              setHoppingToken({ key, step: nextVal });
+              setHoppingToken({ key, step: nextVal, isRewind: false });
               sounds.playTokenStep(step);
 
               if (step === stepsCount) {
-                setTimeout(() => setHoppingToken(null), 180);
+                setTimeout(() => setHoppingToken(null), 90);
               }
-            }, (step - 1) * 150);
+            }, (step - 1) * stepSpeed);
             activeTimersRef.current.push(timer);
           }
         } else if (prevProg !== undefined && targetProg === 0 && prevProg === -1) {
           // Token spawned from base onto track
           sounds.playTokenStep();
         } else if (prevProg !== undefined && targetProg === -1 && prevProg >= 0) {
-          // Token captured back to base
-          sounds.playCapturePop();
+          // Token captured/killed: rapid rewind backwards along the exact track it took!
+          const rewindStepsCount = prevProg + 1;
+          const rewindSpeed = Math.max(22, Math.min(45, Math.floor(600 / rewindStepsCount)));
+
+          for (let s = 1; s <= rewindStepsCount; s++) {
+            const rewindVal = (s === rewindStepsCount) ? -1 : prevProg - s;
+            const timer = setTimeout(() => {
+              setHoppingToken({ key, step: rewindVal, isRewind: true });
+              sounds.playRewindStep();
+
+              if (s === rewindStepsCount) {
+                sounds.playCapturePop();
+                setTimeout(() => setHoppingToken(null), 120);
+              }
+            }, (s - 1) * rewindSpeed);
+            activeTimersRef.current.push(timer);
+          }
         }
       });
     });
@@ -99,19 +115,21 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
     coord: GridCoord;
     isMovable: boolean;
     isHopping: boolean;
+    isRewinding: boolean;
   }> = [];
 
   gameState.players.forEach(player => {
     player.tokens.forEach((token) => {
       const key = `${player.color}-${token.id}`;
-      // When actively hopping, use the animated step; otherwise ALWAYS use the authoritative token.progress
+      // When actively hopping or rewinding, use the animated step; otherwise ALWAYS use the authoritative token.progress
       const currentProg = (hoppingToken && hoppingToken.key === key)
         ? hoppingToken.step
         : token.progress;
       const coord = getCoordForProgress(player.color, currentProg, token.id);
 
       const isMovable = isMyTurn && player.id === myPlayerId && movableTokenIds.includes(token.id);
-      const isHopping = hoppingToken?.key === key;
+      const isHopping = hoppingToken?.key === key && !hoppingToken?.isRewind;
+      const isRewinding = hoppingToken?.key === key && !!hoppingToken?.isRewind;
 
       placedTokens.push({
         playerColor: player.color,
@@ -119,7 +137,8 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
         token,
         coord,
         isMovable,
-        isHopping
+        isHopping,
+        isRewinding
       });
     });
   });
@@ -188,13 +207,21 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
             <div className="h-5" />
           )}
 
-          <div className="w-full h-full flex items-center justify-center">
-            <div className={`grid grid-cols-2 gap-2 p-1.5 sm:p-2 rounded-lg sm:rounded-xl bg-black/45 border border-rose-500/30 ${
-              !rosePlayer ? 'opacity-20' : ''
-            }`}>
-              {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="w-5 h-5 sm:w-7 sm:h-7 rounded-full border border-rose-400/50 bg-rose-950/60 flex items-center justify-center shadow-inner" />
-              ))}
+          {/* 4 Sunken Token Slots, spaced with proper 2-cell gap matching BASE_SLOTS_COORDS */}
+          <div className={`absolute inset-0 grid grid-cols-6 grid-rows-6 p-1.5 sm:p-2 pointer-events-none ${
+            !rosePlayer ? 'opacity-20' : ''
+          }`}>
+            <div className="col-start-2 row-start-2 flex items-center justify-center">
+              <div className="w-5 h-5 sm:w-7 sm:h-7 rounded-full border border-rose-400/50 bg-rose-950/70 shadow-inner flex items-center justify-center" />
+            </div>
+            <div className="col-start-5 row-start-2 flex items-center justify-center">
+              <div className="w-5 h-5 sm:w-7 sm:h-7 rounded-full border border-rose-400/50 bg-rose-950/70 shadow-inner flex items-center justify-center" />
+            </div>
+            <div className="col-start-2 row-start-5 flex items-center justify-center">
+              <div className="w-5 h-5 sm:w-7 sm:h-7 rounded-full border border-rose-400/50 bg-rose-950/70 shadow-inner flex items-center justify-center" />
+            </div>
+            <div className="col-start-5 row-start-5 flex items-center justify-center">
+              <div className="w-5 h-5 sm:w-7 sm:h-7 rounded-full border border-rose-400/50 bg-rose-950/70 shadow-inner flex items-center justify-center" />
             </div>
           </div>
 
@@ -243,13 +270,21 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
             <div className="h-5" />
           )}
 
-          <div className="w-full h-full flex items-center justify-center">
-            <div className={`grid grid-cols-2 gap-2 p-1.5 sm:p-2 rounded-lg sm:rounded-xl bg-black/45 border border-purple-500/30 ${
-              !lavenderPlayer ? 'opacity-20' : ''
-            }`}>
-              {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="w-5 h-5 sm:w-7 sm:h-7 rounded-full border border-purple-400/50 bg-purple-950/60 flex items-center justify-center shadow-inner" />
-              ))}
+          {/* 4 Sunken Token Slots, spaced with proper 2-cell gap matching BASE_SLOTS_COORDS */}
+          <div className={`absolute inset-0 grid grid-cols-6 grid-rows-6 p-1.5 sm:p-2 pointer-events-none ${
+            !lavenderPlayer ? 'opacity-20' : ''
+          }`}>
+            <div className="col-start-2 row-start-2 flex items-center justify-center">
+              <div className="w-5 h-5 sm:w-7 sm:h-7 rounded-full border border-purple-400/50 bg-purple-950/70 shadow-inner flex items-center justify-center" />
+            </div>
+            <div className="col-start-5 row-start-2 flex items-center justify-center">
+              <div className="w-5 h-5 sm:w-7 sm:h-7 rounded-full border border-purple-400/50 bg-purple-950/70 shadow-inner flex items-center justify-center" />
+            </div>
+            <div className="col-start-2 row-start-5 flex items-center justify-center">
+              <div className="w-5 h-5 sm:w-7 sm:h-7 rounded-full border border-purple-400/50 bg-purple-950/70 shadow-inner flex items-center justify-center" />
+            </div>
+            <div className="col-start-5 row-start-5 flex items-center justify-center">
+              <div className="w-5 h-5 sm:w-7 sm:h-7 rounded-full border border-purple-400/50 bg-purple-950/70 shadow-inner flex items-center justify-center" />
             </div>
           </div>
 
@@ -298,13 +333,21 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
             <div className="h-5" />
           )}
 
-          <div className="w-full h-full flex items-center justify-center">
-            <div className={`grid grid-cols-2 gap-2 p-1.5 sm:p-2 rounded-lg sm:rounded-xl bg-black/45 border border-amber-500/30 ${
-              !peachPlayer ? 'opacity-20' : ''
-            }`}>
-              {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="w-5 h-5 sm:w-7 sm:h-7 rounded-full border border-amber-400/50 bg-amber-950/60 flex items-center justify-center shadow-inner" />
-              ))}
+          {/* 4 Sunken Token Slots, spaced with proper 2-cell gap matching BASE_SLOTS_COORDS */}
+          <div className={`absolute inset-0 grid grid-cols-6 grid-rows-6 p-1.5 sm:p-2 pointer-events-none ${
+            !peachPlayer ? 'opacity-20' : ''
+          }`}>
+            <div className="col-start-2 row-start-2 flex items-center justify-center">
+              <div className="w-5 h-5 sm:w-7 sm:h-7 rounded-full border border-amber-400/50 bg-amber-950/70 shadow-inner flex items-center justify-center" />
+            </div>
+            <div className="col-start-5 row-start-2 flex items-center justify-center">
+              <div className="w-5 h-5 sm:w-7 sm:h-7 rounded-full border border-amber-400/50 bg-amber-950/70 shadow-inner flex items-center justify-center" />
+            </div>
+            <div className="col-start-2 row-start-5 flex items-center justify-center">
+              <div className="w-5 h-5 sm:w-7 sm:h-7 rounded-full border border-amber-400/50 bg-amber-950/70 shadow-inner flex items-center justify-center" />
+            </div>
+            <div className="col-start-5 row-start-5 flex items-center justify-center">
+              <div className="w-5 h-5 sm:w-7 sm:h-7 rounded-full border border-amber-400/50 bg-amber-950/70 shadow-inner flex items-center justify-center" />
             </div>
           </div>
 
@@ -353,13 +396,21 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
             <div className="h-5" />
           )}
 
-          <div className="w-full h-full flex items-center justify-center">
-            <div className={`grid grid-cols-2 gap-2 p-1.5 sm:p-2 rounded-lg sm:rounded-xl bg-black/45 border border-teal-500/30 ${
-              !mintPlayer ? 'opacity-20' : ''
-            }`}>
-              {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="w-5 h-5 sm:w-7 sm:h-7 rounded-full border border-teal-400/50 bg-teal-950/60 flex items-center justify-center shadow-inner" />
-              ))}
+          {/* 4 Sunken Token Slots, spaced with proper 2-cell gap matching BASE_SLOTS_COORDS */}
+          <div className={`absolute inset-0 grid grid-cols-6 grid-rows-6 p-1.5 sm:p-2 pointer-events-none ${
+            !mintPlayer ? 'opacity-20' : ''
+          }`}>
+            <div className="col-start-2 row-start-2 flex items-center justify-center">
+              <div className="w-5 h-5 sm:w-7 sm:h-7 rounded-full border border-teal-400/50 bg-teal-950/70 shadow-inner flex items-center justify-center" />
+            </div>
+            <div className="col-start-5 row-start-2 flex items-center justify-center">
+              <div className="w-5 h-5 sm:w-7 sm:h-7 rounded-full border border-teal-400/50 bg-teal-950/70 shadow-inner flex items-center justify-center" />
+            </div>
+            <div className="col-start-2 row-start-5 flex items-center justify-center">
+              <div className="w-5 h-5 sm:w-7 sm:h-7 rounded-full border border-teal-400/50 bg-teal-950/70 shadow-inner flex items-center justify-center" />
+            </div>
+            <div className="col-start-5 row-start-5 flex items-center justify-center">
+              <div className="w-5 h-5 sm:w-7 sm:h-7 rounded-full border border-teal-400/50 bg-teal-950/70 shadow-inner flex items-center justify-center" />
             </div>
           </div>
 
@@ -440,27 +491,34 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
           })
         )}
 
-        {/* Tokens Overlay with Smooth Step-by-Step Hopping Physics */}
+        {/* Tokens Overlay with Fast Hopping & Reverse Rewinding Kill Animation */}
         {placedTokens.map((item) => {
           const colorCfg = COLOR_STYLES[item.playerColor];
           const isSelectedMovable = item.isMovable;
           const isHopping = item.isHopping;
+          const isRewinding = item.isRewinding;
 
           return (
             <motion.div
               key={`token-${item.playerColor}-${item.token.id}`}
               layout
-              transition={{ type: "spring", stiffness: 420, damping: 28 }}
+              transition={
+                isRewinding
+                  ? { duration: 0.045, ease: "linear" }
+                  : { type: "spring", stiffness: 550, damping: 25 }
+              }
               style={{
                 gridRowStart: item.coord.r + 1,
                 gridColumnStart: item.coord.c + 1
               }}
               animate={
-                isHopping
-                  ? { scale: [1, 1.25, 1], y: [0, -8, 0] }
+                isRewinding
+                  ? { scale: 1.15, rotate: -360, y: -6 }
+                  : isHopping
+                  ? { scale: [1, 1.25, 1], y: [0, -8, 0], rotate: 0 }
                   : isSelectedMovable
-                  ? { scale: [1, 1.08, 1], y: [0, -1.5, 0] }
-                  : { scale: 1, opacity: 1, y: 0 }
+                  ? { scale: [1, 1.1, 1], y: [0, -2, 0], rotate: 0 }
+                  : { scale: 1, opacity: 1, y: 0, rotate: 0 }
               }
               onClick={(e) => {
                 e.stopPropagation();
@@ -469,8 +527,8 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
                   onSelectToken(item.token.id);
                 }
               }}
-              className={`z-30 w-full h-full flex items-center justify-center touch-manipulation ${
-                isSelectedMovable ? 'cursor-pointer' : 'pointer-events-none'
+              className={`z-30 w-full h-full flex items-center justify-center touch-manipulation active:scale-90 transition-transform ${
+                isSelectedMovable ? 'cursor-pointer hover:scale-105' : 'pointer-events-none'
               }`}
             >
               <div

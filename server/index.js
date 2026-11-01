@@ -130,7 +130,7 @@ function checkAndPlayBotTurn(room) {
           passTurnToNextPlayer(room.gameState);
           io.to(room.id).emit('turn-passed', { gameState: room.gameState });
           checkAndPlayBotTurn(room);
-        }, 1400);
+        }, 550);
       } else {
         setTimeout(() => {
           if (!room.gameState || room.gameState.winner) return;
@@ -157,10 +157,10 @@ function checkAndPlayBotTurn(room) {
             io.to(room.id).emit('token-moved', { gameState: room.gameState });
             checkAndPlayBotTurn(room);
           }
-        }, 1100);
+        }, 450);
       }
     }
-  }, 900);
+  }, 350);
 }
 
 // Socket connection
@@ -361,14 +361,14 @@ io.on('connection', (socket) => {
       gameState: room.gameState
     });
 
-    // If no moves were available or 3-sixes penalty, wait 1400ms so players see the dice roll, then pass turn
+    // If no moves were available or 3-sixes penalty, wait 550ms so players see the dice roll, then pass turn
     if (rollResult.penalty || rollResult.movableTokenIds.length === 0) {
       setTimeout(() => {
         if (!room.gameState || room.gameState.winner) return;
         passTurnToNextPlayer(room.gameState);
         io.to(roomId).emit('turn-passed', { gameState: room.gameState });
         checkAndPlayBotTurn(room);
-      }, 1400);
+      }, 550);
     }
   });
 

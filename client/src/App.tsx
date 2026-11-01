@@ -242,7 +242,7 @@ export const App: React.FC = () => {
     socket.on('dice-rolled', ({ gameState: newGameState, rollResult }: { gameState: GameState; rollResult?: { movableTokenIds: number[] } }) => {
       setGameState({ ...newGameState });
 
-      // Auto-move token if it is the ONLY eligible moving token after the 1000ms dice roll animation!
+      // Auto-move token briskly if it is the ONLY eligible moving token right as the dice settles!
       const currentTurnPlayer = newGameState.players[newGameState.currentTurnIndex];
       const movable = rollResult?.movableTokenIds || newGameState.movableTokenIds || [];
 
@@ -257,7 +257,7 @@ export const App: React.FC = () => {
             sounds.playTokenStep();
             socketService.moveToken(roomIdRef.current, myPlayerId, singleTokenId);
           }
-        }, 1000);
+        }, 440);
       }
     });
 

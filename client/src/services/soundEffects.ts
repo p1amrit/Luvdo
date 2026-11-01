@@ -57,11 +57,11 @@ class SoundManager {
 
   private lastDiceRollTime = 0;
 
-  // Realistic rolling dice sound with acoustic wood impacts & mobile vibration, synchronized to 720ms animation
+  // Realistic rolling dice sound with acoustic wood impacts & mobile vibration, synchronized to 420ms animation
   public playDiceRoll() {
     if (this.isMuted) return;
     const nowMs = Date.now();
-    if (nowMs - this.lastDiceRollTime < 500) return;
+    if (nowMs - this.lastDiceRollTime < 320) return;
     this.lastDiceRollTime = nowMs;
 
     this.initContext();
@@ -71,14 +71,14 @@ class SoundManager {
     // Mobile physical vibration timed with bounces
     if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
       try {
-        navigator.vibrate([15, 30, 20, 40, 25, 50]);
+        navigator.vibrate([12, 20, 15, 30]);
       } catch {
         // ignore
       }
     }
 
-    // Natural physics deceleration rattle timings (in ms) leading to a decisive landing at 720ms
-    const bounceDelays = [0, 45, 95, 155, 230, 320, 425, 545, 665];
+    // Natural physics deceleration rattle timings (in ms) leading to a decisive landing at 420ms
+    const bounceDelays = [0, 30, 70, 120, 185, 260, 345];
 
     bounceDelays.forEach((delay, index) => {
       setTimeout(() => {
@@ -87,7 +87,7 @@ class SoundManager {
         const decayFactor = 1 - (index / bounceDelays.length) * 0.4;
 
         // Snappy impact noise (dice edge rattling)
-        const bufferSize = Math.floor(ctx.sampleRate * 0.025);
+        const bufferSize = Math.floor(ctx.sampleRate * 0.02);
         const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
         const output = noiseBuffer.getChannelData(0);
         for (let i = 0; i < bufferSize; i++) {
@@ -104,7 +104,7 @@ class SoundManager {
 
         const noiseGain = ctx.createGain();
         noiseGain.gain.setValueAtTime(0.28 * decayFactor, now);
-        noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.025);
+        noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.02);
 
         noise.connect(noiseFilter);
         noiseFilter.connect(noiseGain);
@@ -116,22 +116,22 @@ class SoundManager {
         const oscGain = ctx.createGain();
         osc.type = 'triangle';
 
-        const startFreq = 400 + Math.random() * 100;
+        const startFreq = 420 + Math.random() * 100;
         osc.frequency.setValueAtTime(startFreq, now);
-        osc.frequency.exponentialRampToValueAtTime(120, now + 0.035);
+        osc.frequency.exponentialRampToValueAtTime(130, now + 0.028);
 
         oscGain.gain.setValueAtTime(0.2 * decayFactor, now);
-        oscGain.gain.exponentialRampToValueAtTime(0.001, now + 0.035);
+        oscGain.gain.exponentialRampToValueAtTime(0.001, now + 0.028);
 
         osc.connect(oscGain);
         oscGain.connect(ctx.destination);
 
         osc.start(now);
-        osc.stop(now + 0.035);
+        osc.stop(now + 0.028);
       }, delay);
     });
 
-    // Decisive final solid landing thud at exactly 720ms (when die lands face-up)
+    // Decisive final solid landing thud at exactly 420ms (when die lands face-up)
     setTimeout(() => {
       if (!ctx) return;
       const now = ctx.currentTime;
@@ -141,20 +141,20 @@ class SoundManager {
       const oscGain = ctx.createGain();
       osc.type = 'sine';
       osc.frequency.setValueAtTime(260, now);
-      osc.frequency.exponentialRampToValueAtTime(80, now + 0.08);
+      osc.frequency.exponentialRampToValueAtTime(80, now + 0.06);
 
       oscGain.gain.setValueAtTime(0.4, now);
-      oscGain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+      oscGain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
 
       osc.connect(oscGain);
       oscGain.connect(ctx.destination);
       osc.start(now);
-      osc.stop(now + 0.08);
+      osc.stop(now + 0.06);
 
       // Final wood click
-      const clickBuf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.02), ctx.sampleRate);
+      const clickBuf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.015), ctx.sampleRate);
       const data = clickBuf.getChannelData(0);
-      for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * Math.exp(-i / 80);
+      for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * Math.exp(-i / 70);
       const clickSrc = ctx.createBufferSource();
       clickSrc.buffer = clickBuf;
       const clickGain = ctx.createGain();
@@ -162,7 +162,31 @@ class SoundManager {
       clickSrc.connect(clickGain);
       clickGain.connect(ctx.destination);
       clickSrc.start(now);
-    }, 720);
+    }, 420);
+  }
+
+  // Rapid reverse stepping sound for killed tokens flying back to base
+  public playRewindStep() {
+    if (this.isMuted) return;
+    this.initContext();
+    const ctx = this.ctx;
+    if (!ctx) return;
+
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(650 + Math.random() * 200, now);
+    osc.frequency.exponentialRampToValueAtTime(280, now + 0.035);
+
+    gain.gain.setValueAtTime(0.18, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.035);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.035);
   }
 
   // Playful pop sound when a chat bubble appears on a player's home base

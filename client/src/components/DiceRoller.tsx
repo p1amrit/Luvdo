@@ -85,7 +85,7 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({
       const timer = setTimeout(() => {
         setIsTumbling(false);
         setDisplayedValue(diceValue);
-      }, 720);
+      }, 420);
 
       return () => clearTimeout(timer);
     }
@@ -198,11 +198,11 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({
               transformStyle: 'preserve-3d',
               WebkitTransformStyle: 'preserve-3d',
               transform: `rotateX(${rotation.x}deg) rotateY(${rotation.y}deg) rotateZ(${rotation.z}deg) ${
-                isTumbling ? 'translateY(-16px) scale(1.06)' : 'translateY(0px) scale(1)'
+                isTumbling ? 'translateY(-14px) scale(1.06)' : 'translateY(0px) scale(1)'
               }`,
               transition: isTumbling
-                ? 'transform 0.72s cubic-bezier(0.2, 0.9, 0.3, 1)'
-                : 'transform 0.2s ease-out'
+                ? 'transform 0.42s cubic-bezier(0.18, 0.9, 0.32, 1)'
+                : 'transform 0.16s ease-out'
             }}
           >
             {/* Common Face Style */}
