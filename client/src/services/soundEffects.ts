@@ -244,6 +244,70 @@ class SoundManager {
     osc.stop(ctx.currentTime + 0.22);
   }
 
+  // Uplifting chime when a player enters the room
+  public playPlayerJoin() {
+    if (this.isMuted) return;
+    this.initContext();
+    const ctx = this.ctx;
+    if (!ctx) return;
+
+    if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+      try {
+        navigator.vibrate([25, 35, 45]);
+      } catch {}
+    }
+
+    const notes = [523.25, 659.25, 783.99, 1046.5]; // C5 -> E5 -> G5 -> C6
+    notes.forEach((freq, idx) => {
+      setTimeout(() => {
+        if (!ctx) return;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, ctx.currentTime);
+
+        gain.gain.setValueAtTime(0.18, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.45);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.start();
+        osc.stop(ctx.currentTime + 0.45);
+      }, idx * 75);
+    });
+  }
+
+  // Soft mellow chime when a player exits the room
+  public playPlayerLeave() {
+    if (this.isMuted) return;
+    this.initContext();
+    const ctx = this.ctx;
+    if (!ctx) return;
+
+    const notes = [493.88, 392.0, 329.63]; // B4 -> G4 -> E4
+    notes.forEach((freq, idx) => {
+      setTimeout(() => {
+        if (!ctx) return;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, ctx.currentTime);
+
+        gain.gain.setValueAtTime(0.14, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.start();
+        osc.stop(ctx.currentTime + 0.35);
+      }, idx * 90);
+    });
+  }
+
   // Victory celebration chords
   public playVictoryChime() {
     if (this.isMuted) return;

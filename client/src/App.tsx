@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Sparkles, Volume2, VolumeX, ArrowLeft, Users } from 'lucide-react';
-import { Room, GameState, AestheticTheme, RoomVibe, ChatMessage } from './types/game';
+import { Room, GameState, AestheticTheme, RoomVibe, ChatMessage, Player } from './types/game';
 import { socketService, getApiUrl } from './services/socket';
 import { sounds } from './services/soundEffects';
 import { AestheticBackground } from './components/AestheticBackground';
@@ -13,15 +13,16 @@ import { FloatingReactionOverlay } from './components/FloatingReactionOverlay';
 import { LofiPlayer } from './components/LofiPlayer';
 import { VictoryModal } from './components/VictoryModal';
 
-const DEFAULT_AVATARS = ['😎', '🍕', '🎮', '🚀', '🐱', '👑', '🥰', '💖', '🐰', '🐻', '🥑', '✨'];
+const ALL_MASCOTS = ['😎', '🍕', '🎮', '🚀', '🐱', '👑', '🥰', '💖', '🐰', '🐻', '🦊', '🥑', '🎧', '☕', '✨', '👻'];
+const ALL_NICKNAMES = ['PixelKing', 'BobaQueen', 'ChaosGremlin', 'Honeybee', 'Capybara', 'Speedy', 'Noodle', 'Ghostie', 'Cupid', 'Sweetpea', 'Captain', 'VibeMaster', 'StarGazer', 'LuckyDice'];
 
 export const App: React.FC = () => {
   // Navigation & User State
   const [inRoom, setInRoom] = useState(false);
   const [roomId, setRoomId] = useState('');
-  const [selectedVibe, setSelectedVibe] = useState<RoomVibe>('friends');
   const [guestName, setGuestName] = useState(() => localStorage.getItem('luvdo_name') || 'PixelKing');
   const [guestAvatar, setGuestAvatar] = useState(() => localStorage.getItem('luvdo_avatar') || '😎');
+  const [playerNotice, setPlayerNotice] = useState<{ type: 'join' | 'leave'; name: string; avatar: string } | null>(null);
   const [myPlayerId] = useState(() => {
     let id = sessionStorage.getItem('luvdo_player_id');
     if (!id) {
@@ -64,6 +65,11 @@ export const App: React.FC = () => {
     localStorage.setItem('luvdo_avatar', guestAvatar);
   }, [guestName, guestAvatar]);
 
+  const handleRandomNickname = () => {
+    const rand = ALL_NICKNAMES[Math.floor(Math.random() * ALL_NICKNAMES.length)];
+    setGuestName(rand);
+  };
+
   // Setup Socket Listeners
   useEffect(() => {
     const socket = socketService.connect();
@@ -74,15 +80,24 @@ export const App: React.FC = () => {
       if (updatedRoom.theme) {
         setCurrentTheme(updatedRoom.theme);
       }
-      if (updatedRoom.vibe) {
-        setSelectedVibe(updatedRoom.vibe);
-      }
       if (updatedRoom.gameState) {
         setGameState(updatedRoom.gameState);
       }
       if (updatedRoom.chatMessages) {
         setChatMessages(updatedRoom.chatMessages);
       }
+    });
+
+    socket.on('player-joined-notice', ({ player }: { player: Player }) => {
+      sounds.playPlayerJoin();
+      setPlayerNotice({ type: 'join', name: player.name, avatar: player.avatar });
+      setTimeout(() => setPlayerNotice(null), 3600);
+    });
+
+    socket.on('player-left-notice', ({ player }: { player: Player }) => {
+      sounds.playPlayerLeave();
+      setPlayerNotice({ type: 'leave', name: player.name, avatar: player.avatar });
+      setTimeout(() => setPlayerNotice(null), 3600);
     });
 
     socket.on('new-chat-message', ({ message }: { message: ChatMessage }) => {
@@ -162,6 +177,8 @@ export const App: React.FC = () => {
       socket.off('turn-passed');
       socket.off('synchronized-heartbeat-pulse');
       socket.off('partner-screen-touched');
+      socket.off('player-joined-notice');
+      socket.off('player-left-notice');
       socket.off('error-message');
     };
   }, []);
@@ -180,8 +197,8 @@ export const App: React.FC = () => {
           hostName: guestName,
           hostAvatar: guestAvatar,
           theme: currentTheme,
-          vibe: selectedVibe,
-          mode: selectedVibe === 'couple' ? 'couple-1v1' : 'free-for-all-4p',
+          vibe: 'friends',
+          mode: 'free-for-all-4p',
           gentleMode: false,
           quickMode: true
         })
@@ -330,86 +347,72 @@ export const App: React.FC = () => {
               </p>
             </div>
 
-            {/* Choose Vibe Before Creating */}
-            <div className="p-4 rounded-3xl glass-panel border border-white/15 text-left space-y-2">
-              <span className="text-xs font-semibold text-white/80">Choose Your Vibe:</span>
-              <div className="grid grid-cols-3 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setSelectedVibe('friends')}
-                  className={`p-3 rounded-2xl flex flex-col items-center gap-1 border transition-all ${
-                    selectedVibe === 'friends'
-                      ? 'bg-purple-600/40 border-purple-400 ring-2 ring-purple-400 shadow-lg'
-                      : 'bg-white/5 border-white/10 hover:bg-white/10'
-                  }`}
-                >
-                  <span className="text-2xl">🎉</span>
-                  <span className="text-xs font-bold text-white">Friends & Party</span>
-                  <span className="text-[10px] text-white/60 text-center hidden sm:inline">Memes, roasts & dares</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setSelectedVibe('couple')}
-                  className={`p-3 rounded-2xl flex flex-col items-center gap-1 border transition-all ${
-                    selectedVibe === 'couple'
-                      ? 'bg-pink-600/40 border-pink-400 ring-2 ring-pink-400 shadow-lg'
-                      : 'bg-white/5 border-white/10 hover:bg-white/10'
-                  }`}
-                >
-                  <span className="text-2xl">💖</span>
-                  <span className="text-xs font-bold text-white">Couple Date</span>
-                  <span className="text-[10px] text-white/60 text-center hidden sm:inline">Sweet prompts & romance</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setSelectedVibe('casual')}
-                  className={`p-3 rounded-2xl flex flex-col items-center gap-1 border transition-all ${
-                    selectedVibe === 'casual'
-                      ? 'bg-teal-600/40 border-teal-400 ring-2 ring-teal-400 shadow-lg'
-                      : 'bg-white/5 border-white/10 hover:bg-white/10'
-                  }`}
-                >
-                  <span className="text-2xl">☕</span>
-                  <span className="text-xs font-bold text-white">Chill & Casual</span>
-                  <span className="text-[10px] text-white/60 text-center hidden sm:inline">Cozy aesthetic match</span>
-                </button>
+            {/* Setup Your Profile (Name & Avatar - Set Once Before Entering) */}
+            <div className="p-5 sm:p-6 rounded-3xl glass-panel border border-white/20 text-left space-y-4 shadow-2xl">
+              <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">✨</span>
+                  <h3 className="text-sm sm:text-base font-black text-white">
+                    Set Up Your Player Profile
+                  </h3>
+                </div>
+                <span className="text-[11px] text-pink-300 font-semibold">
+                  (Locked upon entering room)
+                </span>
               </div>
-            </div>
 
-            {/* Guest Quick Profile Card */}
-            <div className="p-5 rounded-3xl glass-panel border border-white/15 text-left space-y-3">
-              <span className="text-xs font-semibold text-pink-200">
-                Player Profile:
-              </span>
+              {/* Avatar + Nickname Big Preview & Input */}
+              <div className="flex flex-col sm:flex-row items-center gap-4">
+                <div className="flex flex-col items-center gap-1">
+                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-pink-500/30 to-purple-500/30 border-2 border-pink-400 flex items-center justify-center text-3xl sm:text-4xl shadow-lg ring-4 ring-pink-400/20">
+                    {guestAvatar}
+                  </div>
+                  <span className="text-[10px] text-pink-200/80 font-bold">Your Mascot</span>
+                </div>
 
-              <div className="flex items-center gap-3">
-                <div className="flex gap-1.5 overflow-x-auto no-scrollbar py-1">
-                  {DEFAULT_AVATARS.map((av) => (
+                <div className="flex-1 w-full space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-white/80">Your Player Nickname:</span>
+                    <button
+                      type="button"
+                      onClick={handleRandomNickname}
+                      className="text-xs text-pink-300 hover:text-pink-200 underline font-semibold flex items-center gap-1 transition-colors"
+                    >
+                      <Sparkles size={12} />
+                      <span>Random Name</span>
+                    </button>
+                  </div>
+
+                  <input
+                    type="text"
+                    value={guestName}
+                    onChange={(e) => setGuestName(e.target.value)}
+                    maxLength={20}
+                    placeholder="Enter your nickname..."
+                    className="w-full px-4 py-3 rounded-xl bg-slate-950/70 border border-white/25 text-white font-bold text-sm focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent placeholder-white/30 shadow-inner"
+                  />
+                </div>
+              </div>
+
+              {/* Mascot Palette Selection */}
+              <div className="space-y-2 pt-1">
+                <span className="text-xs font-bold text-white/80">Pick Your Mascot Avatar:</span>
+                <div className="grid grid-cols-8 gap-2">
+                  {ALL_MASCOTS.map((av) => (
                     <button
                       key={av}
+                      type="button"
                       onClick={() => setGuestAvatar(av)}
-                      className={`w-9 h-9 rounded-xl flex items-center justify-center text-lg transition-transform ${
+                      className={`h-10 rounded-xl flex items-center justify-center text-xl transition-all ${
                         guestAvatar === av
-                          ? 'bg-pink-500/40 border-2 border-pink-400 scale-110'
-                          : 'bg-white/10 hover:bg-white/20'
+                          ? 'bg-gradient-to-br from-pink-500 to-purple-600 border-2 border-white scale-110 shadow-lg ring-2 ring-pink-400'
+                          : 'bg-white/10 hover:bg-white/20 border border-white/10'
                       }`}
                     >
                       {av}
                     </button>
                   ))}
                 </div>
-              </div>
-
-              <div>
-                <input
-                  type="text"
-                  value={guestName}
-                  onChange={(e) => setGuestName(e.target.value)}
-                  placeholder="Enter your nickname"
-                  className="w-full px-4 py-2.5 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/40 text-sm focus:outline-none focus:ring-2 focus:ring-pink-500"
-                />
               </div>
             </div>
 
@@ -547,6 +550,21 @@ export const App: React.FC = () => {
         />
       )}
 
+
+      {/* Real-Time Player Entry / Exit Popup Notification */}
+      {playerNotice && (
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-4 py-2.5 rounded-2xl glass-panel bg-slate-950/95 border-2 border-pink-400/50 shadow-[0_12px_45px_rgba(0,0,0,0.85)] animate-fade-in pointer-events-none backdrop-blur-xl">
+          <span className="text-3xl">{playerNotice.avatar}</span>
+          <div>
+            <p className="text-xs sm:text-sm font-black text-white">
+              {playerNotice.name} {playerNotice.type === 'join' ? 'entered the room!' : 'left the room'}
+            </p>
+            <p className="text-[10px] sm:text-xs text-pink-300 font-semibold">
+              {playerNotice.type === 'join' ? '🎉 Welcome to the match!' : '👋 See you next time!'}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Victory Modal */}
       {inRoom && gameState?.winner && (

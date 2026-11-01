@@ -215,6 +215,8 @@ io.on('connection', (socket) => {
         timestamp: Date.now(),
         isSystem: true
       });
+
+      socket.to(roomId).emit('player-joined-notice', { player: newPlayer });
     }
 
     io.to(roomId).emit('room-updated', { room });
@@ -318,6 +320,7 @@ io.on('connection', (socket) => {
     };
 
     room.players.push(botPlayer);
+    io.to(roomId).emit('player-joined-notice', { player: botPlayer });
     io.to(roomId).emit('room-updated', { room });
   });
 
@@ -325,7 +328,11 @@ io.on('connection', (socket) => {
   socket.on('remove-bot', ({ roomId, botId }) => {
     const room = rooms.get(roomId);
     if (!room || room.status !== 'lobby') return;
+    const botToRemove = room.players.find(p => p.id === botId);
     room.players = room.players.filter(p => p.id !== botId);
+    if (botToRemove) {
+      io.to(roomId).emit('player-left-notice', { player: botToRemove });
+    }
     io.to(roomId).emit('room-updated', { room });
   });
 
@@ -478,6 +485,7 @@ io.on('connection', (socket) => {
       const player = room.players.find(p => p.id === playerId);
       if (player) {
         player.isOnline = false;
+        socket.to(roomId).emit('player-left-notice', { player });
         io.to(roomId).emit('room-updated', { room });
       }
     }

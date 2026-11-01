@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Copy, Check, Sparkles, HeartHandshake, Shield, Users, Heart, Coffee } from 'lucide-react';
-import { Room, Player, AestheticTheme, GameMode, PlayerColor, RoomVibe } from '../types/game';
+import { Copy, Check, Users, Shield } from 'lucide-react';
+import { Room, Player, AestheticTheme, GameMode, PlayerColor } from '../types/game';
 import { socketService } from '../services/socket';
 import { COLOR_STYLES } from '../utils/boardCoordinates';
 
@@ -10,12 +10,8 @@ interface LobbyViewProps {
   onThemeChange: (theme: AestheticTheme) => void;
 }
 
-const ALL_MASCOTS = ['😎', '🍕', '🎮', '🚀', '🐱', '👑', '🥰', '💖', '🐰', '🐻', '🦊', '🥑', '🎧', '☕', '✨', '👻'];
-const ALL_NICKNAMES = ['PixelKing', 'BobaQueen', 'ChaosGremlin', 'Honeybee', 'Capybara', 'Speedy', 'Noodle', 'Ghostie', 'Cupid', 'Sweetpea', 'Captain', 'VibeMaster'];
-
 export const LobbyView: React.FC<LobbyViewProps> = ({ room, myPlayer, onThemeChange }) => {
   const [copied, setCopied] = useState(false);
-  const [nameInput, setNameInput] = useState(myPlayer.name);
   const isHost = myPlayer.isHost;
 
   const handleCopyLink = () => {
@@ -28,32 +24,12 @@ export const LobbyView: React.FC<LobbyViewProps> = ({ room, myPlayer, onThemeCha
     setTimeout(() => setCopied(false), 2500);
   };
 
-  const handleRandomNickname = () => {
-    const rand = ALL_NICKNAMES[Math.floor(Math.random() * ALL_NICKNAMES.length)];
-    setNameInput(rand);
-    socketService.updateProfile(room.id, myPlayer.id, { name: rand });
-  };
-
-  const handleAvatarChange = (avatar: string) => {
-    socketService.updateProfile(room.id, myPlayer.id, { avatar });
-  };
-
   const handleColorChange = (color: PlayerColor) => {
     socketService.updateProfile(room.id, myPlayer.id, { color });
   };
 
-  const handleNameBlur = () => {
-    if (nameInput.trim()) {
-      socketService.updateProfile(room.id, myPlayer.id, { name: nameInput.trim() });
-    }
-  };
-
   const handleStartGame = () => {
     socketService.startGame(room.id);
-  };
-
-  const handleVibeChange = (vibe: RoomVibe) => {
-    socketService.updateRoomSettings(room.id, { vibe });
   };
 
   const handleModeChange = (mode: GameMode) => {
@@ -81,7 +57,7 @@ export const LobbyView: React.FC<LobbyViewProps> = ({ room, myPlayer, onThemeCha
           LUVDO
         </h1>
         <p className="text-xs sm:text-sm text-pink-200/80">
-          The aesthetic Ludo experience for friends, besties & couples
+          The aesthetic real-time Ludo experience for everyone
         </p>
 
         {/* Shareable Room Box */}
@@ -100,208 +76,154 @@ export const LobbyView: React.FC<LobbyViewProps> = ({ room, myPlayer, onThemeCha
         </div>
       </div>
 
-      {/* Vibe Selector: Friends vs Couples vs Casual */}
-      <div className="p-4 sm:p-5 rounded-3xl glass-panel border border-white/15 space-y-3">
+      {/* High-Visibility Players in Room Grid */}
+      <div className="p-5 sm:p-6 rounded-3xl glass-panel border border-white/20 space-y-4 shadow-2xl">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-bold text-white flex items-center gap-2">
-            <span>✨ Match Vibe</span>
-          </h3>
-          <span className="text-xs text-pink-300 font-medium">
-            {room.vibe === 'friends' && '🎉 Friends Party & Banter'}
-            {room.vibe === 'couple' && '💖 Romantic Date Match'}
-            {room.vibe === 'casual' && '☕ Classic Ludo & Chill Lo-Fi'}
-          </span>
-        </div>
-
-        <div className="grid grid-cols-3 gap-2">
-          <button
-            onClick={() => isHost && handleVibeChange('friends')}
-            disabled={!isHost}
-            className={`p-3 rounded-2xl flex flex-col items-center gap-1.5 border transition-all ${
-              room.vibe === 'friends'
-                ? 'bg-gradient-to-b from-purple-600/40 to-indigo-700/50 border-purple-400 ring-2 ring-purple-400 shadow-lg'
-                : 'bg-white/5 border-white/10 hover:bg-white/10 opacity-75'
-            }`}
-          >
-            <span className="text-2xl">🎉</span>
-            <span className="text-xs font-bold text-white">Friends & Party</span>
-            <span className="text-[10px] text-white/60 text-center hidden sm:inline">Fun party stickers & banter</span>
-          </button>
-
-          <button
-            onClick={() => isHost && handleVibeChange('couple')}
-            disabled={!isHost}
-            className={`p-3 rounded-2xl flex flex-col items-center gap-1.5 border transition-all ${
-              room.vibe === 'couple'
-                ? 'bg-gradient-to-b from-pink-600/40 to-rose-700/50 border-pink-400 ring-2 ring-pink-400 shadow-lg'
-                : 'bg-white/5 border-white/10 hover:bg-white/10 opacity-75'
-            }`}
-          >
-            <span className="text-2xl">💖</span>
-            <span className="text-xs font-bold text-white">Lovers & Date</span>
-            <span className="text-[10px] text-white/60 text-center hidden sm:inline">Romantic couple aesthetic</span>
-          </button>
-
-          <button
-            onClick={() => isHost && handleVibeChange('casual')}
-            disabled={!isHost}
-            className={`p-3 rounded-2xl flex flex-col items-center gap-1.5 border transition-all ${
-              room.vibe === 'casual'
-                ? 'bg-gradient-to-b from-teal-600/40 to-emerald-700/50 border-teal-400 ring-2 ring-teal-400 shadow-lg'
-                : 'bg-white/5 border-white/10 hover:bg-white/10 opacity-75'
-            }`}
-          >
-            <span className="text-2xl">☕</span>
-            <span className="text-xs font-bold text-white">Chill & Casual</span>
-            <span className="text-[10px] text-white/60 text-center hidden sm:inline">Pure aesthetic board night</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Profile & Avatar Customizer */}
-      <div className="p-5 rounded-3xl glass-panel border border-white/15 space-y-4">
-        <h3 className="text-sm font-bold text-pink-200 flex items-center gap-2">
-          <span>👤 Your Player Profile</span>
-        </h3>
-
-        <div className="flex flex-col sm:flex-row items-center gap-4">
-          {/* Avatar Display & Picker */}
-          <div className="space-y-1.5 text-center sm:text-left">
-            <span className="text-[11px] text-white/60">Choose Mascot:</span>
-            <div className="flex flex-wrap gap-1.5 justify-center sm:justify-start max-w-xs">
-              {ALL_MASCOTS.map((av) => (
-                <button
-                  key={av}
-                  onClick={() => handleAvatarChange(av)}
-                  className={`w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center text-lg transition-transform ${
-                    myPlayer.avatar === av
-                      ? 'bg-pink-500/40 border-2 border-pink-400 scale-110 shadow-lg'
-                      : 'bg-white/10 hover:bg-white/20'
-                  }`}
-                >
-                  {av}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Name Input */}
-          <div className="flex-1 w-full space-y-1.5">
-            <div className="flex justify-between items-center">
-              <span className="text-[11px] text-white/60">Your Nickname:</span>
-              <button
-                onClick={handleRandomNickname}
-                className="text-[11px] text-pink-300 hover:text-pink-200 underline flex items-center gap-1"
-              >
-                <Sparkles size={11} /> Random cool name
-              </button>
-            </div>
-            <input
-              type="text"
-              value={nameInput}
-              onChange={(e) => setNameInput(e.target.value)}
-              onBlur={handleNameBlur}
-              maxLength={20}
-              className="w-full px-4 py-2 rounded-xl bg-white/10 border border-white/20 text-white font-medium text-sm focus:outline-none focus:ring-2 focus:ring-pink-500"
-            />
-          </div>
-        </div>
-
-        {/* Color Palette Picker */}
-        <div className="space-y-1.5 pt-2 border-t border-white/10">
-          <span className="text-[11px] text-white/60">Your Board Color:</span>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            {(Object.keys(COLOR_STYLES) as PlayerColor[]).map((col) => {
-              const cfg = COLOR_STYLES[col];
-              const isSelected = myPlayer.color === col;
-              return (
-                <button
-                  key={col}
-                  onClick={() => handleColorChange(col)}
-                  className={`p-2 rounded-xl flex items-center gap-2 border transition-all ${
-                    isSelected
-                      ? `border-white ring-2 ring-pink-400 bg-white/20 scale-102 shadow-lg`
-                      : 'border-white/10 bg-white/5 hover:bg-white/10 opacity-70'
-                  }`}
-                >
-                  <span className="text-base">{cfg.emoji}</span>
-                  <span className={`text-xs font-semibold ${cfg.textColor}`}>{cfg.name}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-
-      {/* Players in Room */}
-      <div className="p-5 rounded-3xl glass-panel border border-white/15 space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-bold text-white flex items-center gap-2">
-            <Users size={16} className="text-pink-400" />
-            <span>Players in Room ({room.players.length}/4)</span>
-          </h3>
-
           <div className="flex items-center gap-2">
-            {isHost && room.players.length < 4 && (
-              <button
-                onClick={() => socketService.addBot(room.id)}
-                className="px-3 py-1 rounded-xl bg-purple-500/25 hover:bg-purple-500/40 border border-purple-400/50 text-purple-200 text-xs font-bold flex items-center gap-1 shadow-sm transition-transform active:scale-95"
-              >
-                <span>🤖 Add AI Bot</span>
-              </button>
-            )}
-            <span className="text-xs text-pink-300/80 hidden sm:inline">
-              {room.players.length === 1 ? 'Waiting for players...' : `${room.players.length} players ready`}
-            </span>
+            <Users size={18} className="text-pink-400" />
+            <h3 className="text-base sm:text-lg font-black text-white">
+              Players in Room ({room.players.length}/4)
+            </h3>
           </div>
+
+          {isHost && room.players.length < 4 && (
+            <button
+              onClick={() => socketService.addBot(room.id)}
+              className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-purple-500/30 to-indigo-500/30 hover:from-purple-500/50 hover:to-indigo-500/50 border border-purple-400/50 text-purple-200 text-xs font-bold flex items-center gap-1.5 shadow-md transition-all active:scale-95"
+            >
+              <span>🤖 + Add AI Bot</span>
+            </button>
+          )}
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {room.players.map((p) => {
-            const colStyle = COLOR_STYLES[p.color];
-            return (
-              <div
-                key={p.id}
-                className="flex items-center justify-between p-3 rounded-2xl bg-white/10 border border-white/15"
-              >
-                <div className="flex items-center gap-2.5">
-                  <span className="text-2xl">{p.avatar}</span>
-                  <div>
-                    <div className="flex items-center gap-1.5">
-                      <p className="text-xs font-bold text-white">{p.name}</p>
-                      {p.isHost && (
-                        <span className="text-[9px] bg-pink-500/30 text-pink-200 px-1.5 py-0.2 rounded border border-pink-400/30 font-semibold">
-                          Host
-                        </span>
-                      )}
-                      {p.isBot && (
-                        <span className="text-[9px] bg-indigo-500/30 text-indigo-200 px-1.5 py-0.2 rounded border border-indigo-400/30 font-semibold">
-                          AI Bot
-                        </span>
-                      )}
-                    </div>
-                    <p className={`text-[10px] ${colStyle.textColor}`}>
-                      {colStyle.emoji} {colStyle.name}
-                    </p>
-                  </div>
-                </div>
+        {/* 4-Slot Dedicated Player Cards Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+          {Array.from({ length: 4 }).map((_, index) => {
+            const player = room.players[index];
+            if (player) {
+              const colStyle = COLOR_STYLES[player.color];
+              const isMe = player.id === myPlayer.id;
 
-                <div className="flex items-center gap-2">
-                  <div className="flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                    <span className="text-[10px] text-emerald-300">Online</span>
+              return (
+                <div
+                  key={player.id}
+                  className={`relative p-3.5 sm:p-4 rounded-2xl border-2 transition-all shadow-lg flex items-center justify-between ${
+                    isMe
+                      ? 'bg-gradient-to-br from-white/20 via-white/10 to-transparent border-white/50 ring-2 ring-pink-400/60'
+                      : `bg-slate-950/80 ${colStyle.border}`
+                  }`}
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="relative">
+                      <div className="w-12 h-12 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-2xl sm:text-3xl shadow-inner">
+                        {player.avatar}
+                      </div>
+                      <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full bg-emerald-400 border-2 border-slate-900 shadow-sm" />
+                    </div>
+
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-sm sm:text-base font-black text-white truncate max-w-[120px] sm:max-w-[140px]">
+                          {player.name}
+                        </p>
+                        {isMe && (
+                          <span className="text-[10px] bg-pink-500/30 text-pink-200 px-1.5 py-0.2 rounded-full font-bold border border-pink-400/40">
+                            You
+                          </span>
+                        )}
+                        {player.isHost && (
+                          <span className="text-[10px] bg-amber-500/30 text-amber-200 px-1.5 py-0.2 rounded-full font-bold border border-amber-400/40">
+                            👑 Host
+                          </span>
+                        )}
+                        {player.isBot && (
+                          <span className="text-[10px] bg-indigo-500/30 text-indigo-200 px-1.5 py-0.2 rounded-full font-bold border border-indigo-400/40">
+                            🤖 Bot
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <span className="text-xs">{colStyle.emoji}</span>
+                        <span className={`text-xs font-bold ${colStyle.textColor}`}>
+                          {colStyle.name}
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                  {isHost && p.isBot && (
+
+                  {/* Actions: Remove bot if host */}
+                  {isHost && player.isBot && (
                     <button
-                      onClick={() => socketService.removeBot(room.id, p.id)}
-                      className="px-1.5 py-0.5 rounded text-white/40 hover:text-rose-400 hover:bg-white/10 transition-colors text-xs font-bold"
+                      onClick={() => socketService.removeBot(room.id, player.id)}
+                      className="p-1.5 rounded-xl bg-white/10 hover:bg-rose-500/30 hover:border-rose-400 text-white/50 hover:text-rose-200 border border-white/10 transition-colors text-xs font-bold"
                       title="Remove AI Bot"
                     >
                       ✕
                     </button>
                   )}
                 </div>
+              );
+            }
+
+            // Empty Slot Card
+            return (
+              <div
+                key={`empty-slot-${index}`}
+                className="p-3.5 sm:p-4 rounded-2xl border-2 border-dashed border-white/15 bg-white/[0.02] flex items-center justify-between min-h-[76px]"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl border border-white/10 bg-white/5 flex items-center justify-center text-white/30 text-sm font-bold">
+                    #{index + 1}
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-white/40">Slot #{index + 1}</p>
+                    <p className="text-[11px] text-white/30">Waiting for player...</p>
+                  </div>
+                </div>
+
+                {isHost && (
+                  <button
+                    onClick={() => socketService.addBot(room.id)}
+                    className="px-2.5 py-1 rounded-xl bg-white/10 hover:bg-purple-500/30 border border-white/15 text-white/70 hover:text-purple-200 text-[11px] font-bold transition-all active:scale-95"
+                  >
+                    + Add Bot
+                  </button>
+                )}
               </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Choose Your Board Color */}
+      <div className="p-4 sm:p-5 rounded-3xl glass-panel border border-white/15 space-y-2.5">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-bold text-white flex items-center gap-1.5">
+            <span>🎨 Choose Your Board Color:</span>
+          </span>
+          <span className={`text-xs font-bold ${COLOR_STYLES[myPlayer.color].textColor}`}>
+            Currently: {COLOR_STYLES[myPlayer.color].name}
+          </span>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          {(Object.keys(COLOR_STYLES) as PlayerColor[]).map((col) => {
+            const cfg = COLOR_STYLES[col];
+            const isSelected = myPlayer.color === col;
+            return (
+              <button
+                key={col}
+                onClick={() => handleColorChange(col)}
+                className={`p-2.5 rounded-2xl flex items-center gap-2 border transition-all ${
+                  isSelected
+                    ? `border-white ring-2 ring-pink-400 bg-white/20 scale-102 shadow-lg`
+                    : 'border-white/10 bg-white/5 hover:bg-white/10 opacity-70'
+                }`}
+              >
+                <span className="text-lg">{cfg.emoji}</span>
+                <span className={`text-xs font-extrabold ${cfg.textColor}`}>{cfg.name}</span>
+              </button>
             );
           })}
         </div>
