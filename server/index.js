@@ -487,6 +487,16 @@ io.on('connection', (socket) => {
         player.isOnline = false;
         socket.to(roomId).emit('player-left-notice', { player });
         io.to(roomId).emit('room-updated', { room });
+
+        // If disconnected player held the active turn, auto-pass to next player so match never freezes
+        if (room.gameState && !room.gameState.winner) {
+          const currentTurnPlayer = room.gameState.players[room.gameState.currentTurnIndex];
+          if (currentTurnPlayer?.id === playerId) {
+            passTurnToNextPlayer(room.gameState);
+            io.to(roomId).emit('turn-passed', { gameState: room.gameState });
+            checkAndPlayBotTurn(room);
+          }
+        }
       }
     }
     console.log(`[Socket] Disconnected: ${socket.id}`);

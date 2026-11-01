@@ -46,6 +46,11 @@ export const App: React.FC = () => {
   const [synchronizedPulse, setSynchronizedPulse] = useState(false);
   const [partnerTouch, setPartnerTouch] = useState<{ x: number; y: number } | null>(null);
 
+  // 15-second Turn Countdown Timer & Auto-play fallback
+  const [turnTimePercent, setTurnTimePercent] = useState<number>(100);
+  const turnStartTimeRef = useRef<number>(Date.now());
+  const autoPlayedRef = useRef<boolean>(false);
+
   const roomIdRef = useRef(roomId);
   const roomRef = useRef<Room | null>(room);
   const gameStateRef = useRef<GameState | null>(gameState);
@@ -58,6 +63,45 @@ export const App: React.FC = () => {
   useEffect(() => {
     gameStateRef.current = gameState;
   }, [gameState]);
+
+  // Turn Timer running around active player's badge
+  useEffect(() => {
+    if (!gameState || gameState.winner) {
+      setTurnTimePercent(100);
+      return;
+    }
+
+    turnStartTimeRef.current = Date.now();
+    autoPlayedRef.current = false;
+    setTurnTimePercent(100);
+
+    const interval = setInterval(() => {
+      const elapsed = Date.now() - turnStartTimeRef.current;
+      const remaining = Math.max(0, 100 - (elapsed / 15000) * 100);
+      setTurnTimePercent(remaining);
+
+      if (remaining <= 0 && !autoPlayedRef.current) {
+        autoPlayedRef.current = true;
+        const currentGameState = gameStateRef.current;
+        if (!currentGameState || currentGameState.winner) return;
+
+        const currentTurnPlayer = currentGameState.players[currentGameState.currentTurnIndex];
+        if (currentTurnPlayer?.id === myPlayerId) {
+          if (currentGameState.diceValue === null) {
+            if (roomIdRef.current) {
+              socketService.rollDice(roomIdRef.current, myPlayerId);
+            }
+          } else if (currentGameState.movableTokenIds && currentGameState.movableTokenIds.length > 0) {
+            if (roomIdRef.current) {
+              socketService.moveToken(roomIdRef.current, myPlayerId, currentGameState.movableTokenIds[0]);
+            }
+          }
+        }
+      }
+    }, 60);
+
+    return () => clearInterval(interval);
+  }, [gameState?.currentTurnIndex, gameState?.rollId, gameState?.winner, myPlayerId]);
 
   // Check URL query parameters for ?room=CODE
   useEffect(() => {
@@ -562,6 +606,7 @@ export const App: React.FC = () => {
                   onSelectToken={handleSelectToken}
                   onScreenTouch={handleScreenTouch}
                   homeChatBubbles={homeChatBubbles}
+                  turnTimePercent={turnTimePercent}
                 />
               </div>
 
@@ -576,6 +621,7 @@ export const App: React.FC = () => {
                   onRoll={handleRollDice}
                   canRoll={canRoll}
                   compact={true}
+                  turnTimePercent={turnTimePercent}
                 />
               </div>
 
@@ -590,6 +636,7 @@ export const App: React.FC = () => {
                   onRoll={handleRollDice}
                   canRoll={canRoll}
                   compact={false}
+                  turnTimePercent={turnTimePercent}
                 />
 
                 <div className="p-3.5 rounded-2xl glass-panel border border-white/10 text-center space-y-1">

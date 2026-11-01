@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Player } from '../types/game';
 import { COLOR_STYLES } from '../utils/boardCoordinates';
 import { sounds } from '../services/soundEffects';
+import { BorderTimer } from './BorderTimer';
 
 interface DiceRollerProps {
   currentTurnPlayer: Player;
@@ -13,6 +14,7 @@ interface DiceRollerProps {
   onRoll: () => void;
   canRoll: boolean;
   compact?: boolean;
+  turnTimePercent?: number;
 }
 
 // 3D rotations required to display each face facing forward
@@ -25,6 +27,15 @@ const FACE_ROTATIONS: Record<number, { x: number; y: number }> = {
   6: { x: -90, y: 0 }
 };
 
+// Computes the next forward angle (always strictly forward >= current + minSpins) settling on target orientation
+const getNextForwardAngle = (current: number, targetMod: number, minSpins: number = 720): number => {
+  const normTarget = ((targetMod % 360) + 360) % 360;
+  const normCurrent = ((current % 360) + 360) % 360;
+  let diff = normTarget - normCurrent;
+  if (diff <= 0) diff += 360; // strictly forward spin
+  return current + minSpins + diff;
+};
+
 export const DiceRoller: React.FC<DiceRollerProps> = ({
   currentTurnPlayer,
   isMyTurn,
@@ -32,33 +43,52 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({
   rollId,
   onRoll,
   canRoll,
-  compact = false
+  compact = false,
+  turnTimePercent
 }) => {
   const [isTumbling, setIsTumbling] = useState(false);
   const [rotation, setRotation] = useState<{ x: number; y: number; z: number }>({ x: 0, y: 0, z: 0 });
   const [displayedValue, setDisplayedValue] = useState<number>(diceValue || 1);
+
+  // Eager click handler for 0ms delay: instant tactile vibration, sound, and lift
+  const handleDiceClick = () => {
+    if (!canRoll) return;
+
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      try {
+        navigator.vibrate(25);
+      } catch {
+        // ignore
+      }
+    }
+
+    setIsTumbling(true);
+    sounds.playDiceRoll();
+    onRoll();
+  };
 
   useEffect(() => {
     if (diceValue !== null) {
       setIsTumbling(true);
       sounds.playDiceRoll();
 
-      // Multi-revolution tumble target
+      // Multi-revolution tumble target, always strictly forward relative to previous rotation
       const base = FACE_ROTATIONS[diceValue] || { x: 0, y: 0 };
-      // Add multiple full spins (720 or 1080 deg) for dramatic rolling
-      const spinsX = (Math.floor(Math.random() * 2) + 2) * 360;
-      const spinsY = (Math.floor(Math.random() * 2) + 3) * 360;
 
-      setRotation({
-        x: base.x + spinsX,
-        y: base.y + spinsY,
-        z: (Math.random() - 0.5) * 40
+      setRotation((prev) => {
+        const nextX = getNextForwardAngle(prev.x, base.x, 720);
+        const nextY = getNextForwardAngle(prev.y, base.y, 720);
+        return {
+          x: nextX,
+          y: nextY,
+          z: 0 // Settles orthogonal and square to prevent oblique peek-through
+        };
       });
 
       const timer = setTimeout(() => {
         setIsTumbling(false);
         setDisplayedValue(diceValue);
-      }, 850);
+      }, 720);
 
       return () => clearTimeout(timer);
     }
@@ -130,22 +160,23 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({
 
   return (
     <div className={`flex ${compact ? 'flex-row items-center justify-between px-3.5 py-2' : 'flex-col items-center justify-center p-3 sm:p-4'} rounded-2xl glass-panel shadow-xl border border-white/15 select-none touch-manipulation`}>
-      {/* Player Turn Status */}
-      <div className={`flex ${compact ? 'flex-col items-start' : 'items-center gap-1.5 mb-2'}`}>
-        <div className="flex items-center gap-1.5">
+      {/* Player Turn Status with Border Timer */}
+      <div className={`flex ${compact ? 'flex-col items-start gap-1' : 'items-center gap-1.5 mb-2'}`}>
+        <div className="relative inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/40 border border-white/10">
+          {turnTimePercent !== undefined && <BorderTimer percent={turnTimePercent} />}
           <span className="text-xl sm:text-2xl">{currentTurnPlayer.avatar}</span>
           <span className={`text-xs sm:text-sm font-black ${colorStyle.textColor} truncate max-w-[130px]`}>
             {isMyTurn ? "Your Turn" : currentTurnPlayer.name}
           </span>
           {canRoll && (
-            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/30 text-emerald-300 border border-emerald-400/40 animate-pulse">
+            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/30 text-emerald-300 border border-emerald-400/40 animate-pulse ml-0.5">
               ROLL
             </span>
           )}
         </div>
 
         {compact && (
-          <span className="text-[11px] text-white/70 font-medium">
+          <span className="text-[11px] text-white/70 font-medium pl-1">
             {canRoll ? "👉 Tap dice to roll!" : diceValue ? `Rolled ${diceValue}` : "Waiting for turn..."}
           </span>
         )}
@@ -154,14 +185,14 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({
       {/* 3D Dice Stage with Perspective */}
       <div className="relative flex flex-col items-center justify-center py-1">
         <div
-          onClick={canRoll ? onRoll : undefined}
-          className={`relative cursor-pointer transition-transform duration-200 active:scale-95 ${
+          onClick={canRoll ? handleDiceClick : undefined}
+          className={`relative cursor-pointer transition-transform duration-150 active:scale-95 ${
             canRoll ? 'cursor-pointer hover:scale-105 filter drop-shadow-[0_0_12px_rgba(255,255,255,0.4)]' : 'cursor-not-allowed opacity-90'
           }`}
           style={{
             width: `${cubeSize}px`,
             height: `${cubeSize}px`,
-            perspective: '600px'
+            perspective: '1100px'
           }}
         >
           {/* 3D Tumbling Cube Container */}
@@ -169,12 +200,13 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({
             className="w-full h-full relative"
             style={{
               transformStyle: 'preserve-3d',
+              WebkitTransformStyle: 'preserve-3d',
               transform: `rotateX(${rotation.x}deg) rotateY(${rotation.y}deg) rotateZ(${rotation.z}deg) ${
-                isTumbling ? 'translateY(-18px) scale(1.08)' : 'translateY(0px) scale(1)'
+                isTumbling ? 'translateY(-16px) scale(1.06)' : 'translateY(0px) scale(1)'
               }`,
               transition: isTumbling
-                ? 'transform 0.85s cubic-bezier(0.22, 1, 0.36, 1)'
-                : 'transform 0.25s ease-out'
+                ? 'transform 0.72s cubic-bezier(0.2, 0.9, 0.3, 1)'
+                : 'transform 0.2s ease-out'
             }}
           >
             {/* Common Face Style */}
@@ -188,10 +220,12 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({
             ].map((face) => (
               <div
                 key={face.num}
-                className="absolute inset-0 rounded-xl bg-gradient-to-br from-slate-100 via-white to-slate-200 border border-slate-300 shadow-md flex items-center justify-center backface-hidden"
+                className="absolute inset-0 rounded-xl bg-white border border-slate-300 shadow-md flex items-center justify-center select-none"
                 style={{
                   transform: face.transform,
-                  boxShadow: 'inset 0 0 6px rgba(0,0,0,0.15), 0 2px 4px rgba(0,0,0,0.2)'
+                  WebkitBackfaceVisibility: 'hidden',
+                  backfaceVisibility: 'hidden',
+                  boxShadow: 'inset 0 0 5px rgba(0,0,0,0.12), 0 2px 4px rgba(0,0,0,0.2)'
                 }}
               >
                 {renderFacePips(face.num)}
