@@ -10,8 +10,8 @@ import { DiceRoller } from './components/DiceRoller';
 import { VoiceChatBar } from './components/VoiceChatBar';
 import { TextChatDrawer } from './components/TextChatDrawer';
 import { FloatingReactionOverlay } from './components/FloatingReactionOverlay';
-import { LofiPlayer } from './components/LofiPlayer';
 import { VictoryModal } from './components/VictoryModal';
+import { voiceChatService } from './services/webrtcVoice';
 
 const ALL_MASCOTS = ['😎', '🍕', '🎮', '🚀', '🐱', '👑', '🥰', '💖', '🐰', '🐻', '🦊', '🥑', '🎧', '☕', '✨', '👻'];
 const ALL_NICKNAMES = ['PixelKing', 'BobaQueen', 'ChaosGremlin', 'Honeybee', 'Capybara', 'Speedy', 'Noodle', 'Ghostie', 'Cupid', 'Sweetpea', 'Captain', 'VibeMaster', 'StarGazer', 'LuckyDice'];
@@ -264,6 +264,9 @@ export const App: React.FC = () => {
 
   const handleLeaveRoom = () => {
     if (confirm('Leave this room?')) {
+      if (voiceChatService.getIsActive()) {
+        voiceChatService.stopVoice();
+      }
       window.location.href = '/';
     }
   };
@@ -304,7 +307,6 @@ export const App: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3">
-          {inRoom && <LofiPlayer roomId={room?.id || ''} musicState={room?.musicState} />}
           {inRoom && <VoiceChatBar roomId={room?.id || ''} />}
 
           <button
@@ -343,7 +345,7 @@ export const App: React.FC = () => {
               </h1>
 
               <p className="text-sm sm:text-base text-pink-100/80 max-w-md mx-auto leading-relaxed">
-                Aesthetic mood lighting, party dares, synchronized Lo-Fi beats, and seamless voice chat.
+                Aesthetic mood lighting, party dares, ultra-low latency live voice chat, and real-time multiplayer.
               </p>
             </div>
 

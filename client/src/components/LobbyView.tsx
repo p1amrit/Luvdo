@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Copy, Check, Users, Shield } from 'lucide-react';
+import { Copy, Check, Users, Shield, Mic } from 'lucide-react';
 import { Room, Player, AestheticTheme, GameMode, PlayerColor } from '../types/game';
 import { socketService } from '../services/socket';
 import { COLOR_STYLES } from '../utils/boardCoordinates';
+import { VoiceChatBar } from './VoiceChatBar';
 
 interface LobbyViewProps {
   room: Room;
@@ -73,6 +74,29 @@ export const LobbyView: React.FC<LobbyViewProps> = ({ room, myPlayer, onThemeCha
             {copied ? <Check size={14} className="text-emerald-300" /> : <Copy size={14} />}
             <span>{copied ? 'Copied!' : 'Copy Invite Link'}</span>
           </button>
+        </div>
+      </div>
+
+      {/* Mobile-First Live Voice Room Card */}
+      <div className="p-4 rounded-2xl glass-panel border border-emerald-400/30 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-3 bg-gradient-to-r from-emerald-950/40 via-teal-950/30 to-purple-950/40">
+        <div className="flex items-center gap-3 text-left w-full sm:w-auto">
+          <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center shrink-0">
+            <Mic size={20} className="text-emerald-300 animate-pulse" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-black text-white">Room Voice Chat</span>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
+                Low Latency
+              </span>
+            </div>
+            <p className="text-xs text-pink-200/70">
+              Talk and laugh with room players with real-time audio
+            </p>
+          </div>
+        </div>
+        <div className="w-full sm:w-auto flex justify-end">
+          <VoiceChatBar roomId={room.id} />
         </div>
       </div>
 

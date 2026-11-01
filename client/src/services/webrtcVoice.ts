@@ -1,5 +1,8 @@
 import { Socket } from 'socket.io-client';
 
+export type VoiceStatus = { isConnected: boolean; isMuted: boolean; error?: string };
+export type VoiceStatusListener = (status: VoiceStatus) => void;
+
 // Helper to optimize SDP for conversational real-time low-latency Opus audio
 function optimizeSdpForLowLatency(sdp: string): string {
   // Enforce Opus mono, 20ms packet intervals (ptime=20), and 32kbps bitrate with DTX
@@ -19,7 +22,8 @@ export class VoiceChatService {
   private socket: Socket | null = null;
   private roomId: string | null = null;
   private isMuted: boolean = false;
-  private onStatusChangeCallback: ((status: { isConnected: boolean; isMuted: boolean; error?: string }) => void) | null = null;
+  private statusListeners: Set<VoiceStatusListener> = new Set();
+  private initializedSocketId: string | null = null;
 
   // Ultra-low latency ICE configuration with diverse STUN servers & pooling
   private rtcConfig: RTCConfiguration = {
@@ -34,11 +38,16 @@ export class VoiceChatService {
     rtcpMuxPolicy: 'require'
   };
 
-  public init(socket: Socket, onStatusChange?: (status: { isConnected: boolean; isMuted: boolean; error?: string }) => void) {
+  public init(socket: Socket, onStatusChange?: VoiceStatusListener) {
     this.socket = socket;
     if (onStatusChange) {
-      this.onStatusChangeCallback = onStatusChange;
+      this.subscribe(onStatusChange);
     }
+
+    if (this.initializedSocketId === socket.id) {
+      return;
+    }
+    this.initializedSocketId = socket.id || 'connected';
 
     this.socket.on('voice-user-joined', async ({ socketId }) => {
       console.log('[Voice] Peer joined voice chat:', socketId);
@@ -282,14 +291,34 @@ export class VoiceChatService {
     return this.localStream !== null;
   }
 
-  private notifyStatus(isConnected: boolean, error?: string) {
-    if (this.onStatusChangeCallback) {
-      this.onStatusChangeCallback({
-        isConnected,
-        isMuted: this.isMuted,
-        error
+  public subscribe(listener: VoiceStatusListener): () => void {
+    this.statusListeners.add(listener);
+    // Emit immediate current state
+    try {
+      listener({
+        isConnected: this.getIsActive(),
+        isMuted: this.isMuted
       });
-    }
+    } catch (_) {}
+
+    return () => {
+      this.statusListeners.delete(listener);
+    };
+  }
+
+  private notifyStatus(isConnected: boolean, error?: string) {
+    const status: VoiceStatus = {
+      isConnected,
+      isMuted: this.isMuted,
+      error
+    };
+    this.statusListeners.forEach(listener => {
+      try {
+        listener(status);
+      } catch (err) {
+        console.error('[Voice] Error in status listener:', err);
+      }
+    });
   }
 }
 
