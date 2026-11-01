@@ -75,13 +75,13 @@ export const VoiceChatBar: React.FC<VoiceChatBarProps> = ({ roomId }) => {
             </div>
           )}
 
-          <span className="text-xs font-semibold text-emerald-300 hidden sm:inline">
-            Voice Connected
+          <span className="text-[11px] font-bold text-emerald-300 hidden sm:inline">
+            Live Voice (Low Latency)
           </span>
 
           <button
             onClick={handleToggleVoice}
-            className="p-2 rounded-full bg-rose-600/40 hover:bg-rose-600/60 text-white transition-all active:scale-95 ml-1"
+            className="p-1.5 sm:p-2 rounded-full bg-rose-600/40 hover:bg-rose-600/60 text-white transition-all active:scale-95 ml-1"
             title="Leave Voice"
           >
             <PhoneOff size={15} />
@@ -90,10 +90,10 @@ export const VoiceChatBar: React.FC<VoiceChatBarProps> = ({ roomId }) => {
       ) : (
         <button
           onClick={handleToggleVoice}
-          className="flex items-center gap-2 px-3 py-1 rounded-full bg-pink-500/20 hover:bg-pink-500/30 border border-pink-400/30 text-pink-200 text-xs font-semibold transition-all active:scale-95"
+          className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-pink-500/20 hover:bg-pink-500/30 border border-pink-400/30 text-pink-200 text-xs font-semibold transition-all active:scale-95"
         >
           <PhoneCall size={14} className="text-pink-300" />
-          <span>Join Couple Voice</span>
+          <span>Join Live Voice</span>
         </button>
       )}
     </div>
