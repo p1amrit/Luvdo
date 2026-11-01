@@ -37,7 +37,6 @@ export const App: React.FC = () => {
   const [room, setRoom] = useState<Room | null>(null);
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
-  const [floatingToast, setFloatingToast] = useState<ChatMessage | null>(null);
   const [currentTheme, setCurrentTheme] = useState<AestheticTheme>('celestial');
   const [isMuted, setIsMuted] = useState(false);
   const [inputRoomCode, setInputRoomCode] = useState('');
@@ -166,15 +165,26 @@ export const App: React.FC = () => {
         const allPlayers = gameStateRef.current?.players || roomRef.current?.players || [];
         const sender = allPlayers.find((p) => p.id === message.senderId || p.name === message.sender);
         if (sender) {
+          const colorKey = sender.color;
+          const msgTimestamp = Date.now();
           setHomeChatBubbles((prev) => ({
             ...prev,
-            [sender.color]: { text: message.text, timestamp: Date.now() }
+            [colorKey]: { text: message.text, timestamp: msgTimestamp }
           }));
           sounds.playChatPop();
-        }
 
-        setFloatingToast(message);
-        setTimeout(() => setFloatingToast(null), 3600);
+          // Auto-remove speech bubble after 3.5 seconds so it cleanly disappears
+          setTimeout(() => {
+            setHomeChatBubbles((prev) => {
+              if (prev[colorKey]?.timestamp === msgTimestamp) {
+                const next = { ...prev };
+                delete next[colorKey];
+                return next;
+              }
+              return prev;
+            });
+          }, 3500);
+        }
       }
     });
 
@@ -603,17 +613,6 @@ export const App: React.FC = () => {
           playerName={myPlayer.name}
           vibe={room?.vibe}
         />
-      )}
-
-      {/* Floating In-Game Chat Notification Toast */}
-      {floatingToast && (
-        <div className="fixed top-14 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-full glass-panel border border-pink-400/50 bg-slate-950/95 shadow-2xl flex items-center gap-2 animate-bounce max-w-[90vw] sm:max-w-md pointer-events-none">
-          <span className="text-xl shrink-0">{floatingToast.senderAvatar || '💬'}</span>
-          <div className="truncate text-xs">
-            <span className="font-bold text-pink-300">{floatingToast.sender}: </span>
-            <span className="text-white">{floatingToast.text}</span>
-          </div>
-        </div>
       )}
 
       {/* Chat Drawer */}

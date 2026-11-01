@@ -175,18 +175,18 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
 
           {/* Ludo King Speech Bubble: Rose */}
           <AnimatePresence>
-            {homeChatBubbles?.rose && (Date.now() - homeChatBubbles.rose.timestamp < 4500) && (
+            {homeChatBubbles?.rose && (
               <motion.div
                 key={`bubble-rose-${homeChatBubbles.rose.timestamp}`}
-                initial={{ scale: 0, opacity: 0, y: 8 }}
+                initial={{ scale: 0, opacity: 0, y: 10 }}
                 animate={{ scale: 1, opacity: 1, y: 0 }}
                 exit={{ scale: 0.5, opacity: 0 }}
                 transition={{ type: 'spring', stiffness: 500, damping: 22 }}
-                className="absolute top-1 left-2 sm:top-2 sm:left-3 z-40 pointer-events-none max-w-[130px] sm:max-w-[160px] filter drop-shadow-[0_8px_20px_rgba(0,0,0,0.85)]"
+                className="absolute top-8 sm:top-9 left-1/2 -translate-x-1/2 z-40 pointer-events-none w-[90%] max-w-[125px] sm:max-w-[145px] filter drop-shadow-[0_8px_20px_rgba(0,0,0,0.85)]"
               >
                 <div className="relative px-2.5 py-1.5 rounded-2xl bg-white text-slate-900 border-2 border-rose-500 font-black text-[10px] sm:text-xs leading-snug shadow-2xl break-words text-center">
                   <span>{homeChatBubbles.rose.text}</span>
-                  <div className="absolute -bottom-1.5 left-4 w-2.5 h-2.5 bg-white border-r-2 border-b-2 border-rose-500 transform rotate-45" />
+                  <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-2.5 h-2.5 bg-white border-l-2 border-t-2 border-rose-500 transform rotate-45" />
                 </div>
               </motion.div>
             )}
@@ -213,18 +213,18 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
 
           {/* Ludo King Speech Bubble: Lavender */}
           <AnimatePresence>
-            {homeChatBubbles?.lavender && (Date.now() - homeChatBubbles.lavender.timestamp < 4500) && (
+            {homeChatBubbles?.lavender && (
               <motion.div
                 key={`bubble-lavender-${homeChatBubbles.lavender.timestamp}`}
-                initial={{ scale: 0, opacity: 0, y: 8 }}
+                initial={{ scale: 0, opacity: 0, y: 10 }}
                 animate={{ scale: 1, opacity: 1, y: 0 }}
                 exit={{ scale: 0.5, opacity: 0 }}
                 transition={{ type: 'spring', stiffness: 500, damping: 22 }}
-                className="absolute top-1 right-2 sm:top-2 sm:right-3 z-40 pointer-events-none max-w-[130px] sm:max-w-[160px] filter drop-shadow-[0_8px_20px_rgba(0,0,0,0.85)]"
+                className="absolute top-8 sm:top-9 left-1/2 -translate-x-1/2 z-40 pointer-events-none w-[90%] max-w-[125px] sm:max-w-[145px] filter drop-shadow-[0_8px_20px_rgba(0,0,0,0.85)]"
               >
                 <div className="relative px-2.5 py-1.5 rounded-2xl bg-white text-slate-900 border-2 border-purple-500 font-black text-[10px] sm:text-xs leading-snug shadow-2xl break-words text-center">
                   <span>{homeChatBubbles.lavender.text}</span>
-                  <div className="absolute -bottom-1.5 right-4 w-2.5 h-2.5 bg-white border-r-2 border-b-2 border-purple-500 transform rotate-45" />
+                  <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-2.5 h-2.5 bg-white border-l-2 border-t-2 border-purple-500 transform rotate-45" />
                 </div>
               </motion.div>
             )}
@@ -251,18 +251,18 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
 
           {/* Ludo King Speech Bubble: Peach */}
           <AnimatePresence>
-            {homeChatBubbles?.peach && (Date.now() - homeChatBubbles.peach.timestamp < 4500) && (
+            {homeChatBubbles?.peach && (
               <motion.div
                 key={`bubble-peach-${homeChatBubbles.peach.timestamp}`}
-                initial={{ scale: 0, opacity: 0, y: -8 }}
+                initial={{ scale: 0, opacity: 0, y: 10 }}
                 animate={{ scale: 1, opacity: 1, y: 0 }}
                 exit={{ scale: 0.5, opacity: 0 }}
                 transition={{ type: 'spring', stiffness: 500, damping: 22 }}
-                className="absolute bottom-1 right-2 sm:bottom-2 sm:right-3 z-40 pointer-events-none max-w-[130px] sm:max-w-[160px] filter drop-shadow-[0_8px_20px_rgba(0,0,0,0.85)]"
+                className="absolute top-8 sm:top-9 left-1/2 -translate-x-1/2 z-40 pointer-events-none w-[90%] max-w-[125px] sm:max-w-[145px] filter drop-shadow-[0_8px_20px_rgba(0,0,0,0.85)]"
               >
                 <div className="relative px-2.5 py-1.5 rounded-2xl bg-white text-slate-900 border-2 border-amber-500 font-black text-[10px] sm:text-xs leading-snug shadow-2xl break-words text-center">
                   <span>{homeChatBubbles.peach.text}</span>
-                  <div className="absolute -top-1.5 right-4 w-2.5 h-2.5 bg-white border-l-2 border-t-2 border-amber-500 transform rotate-45" />
+                  <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-2.5 h-2.5 bg-white border-l-2 border-t-2 border-amber-500 transform rotate-45" />
                 </div>
               </motion.div>
             )}
@@ -289,18 +289,18 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
 
           {/* Ludo King Speech Bubble: Mint */}
           <AnimatePresence>
-            {homeChatBubbles?.mint && (Date.now() - homeChatBubbles.mint.timestamp < 4500) && (
+            {homeChatBubbles?.mint && (
               <motion.div
                 key={`bubble-mint-${homeChatBubbles.mint.timestamp}`}
-                initial={{ scale: 0, opacity: 0, y: -8 }}
+                initial={{ scale: 0, opacity: 0, y: 10 }}
                 animate={{ scale: 1, opacity: 1, y: 0 }}
                 exit={{ scale: 0.5, opacity: 0 }}
                 transition={{ type: 'spring', stiffness: 500, damping: 22 }}
-                className="absolute bottom-1 left-2 sm:bottom-2 sm:left-3 z-40 pointer-events-none max-w-[130px] sm:max-w-[160px] filter drop-shadow-[0_8px_20px_rgba(0,0,0,0.85)]"
+                className="absolute top-8 sm:top-9 left-1/2 -translate-x-1/2 z-40 pointer-events-none w-[90%] max-w-[125px] sm:max-w-[145px] filter drop-shadow-[0_8px_20px_rgba(0,0,0,0.85)]"
               >
                 <div className="relative px-2.5 py-1.5 rounded-2xl bg-white text-slate-900 border-2 border-teal-500 font-black text-[10px] sm:text-xs leading-snug shadow-2xl break-words text-center">
                   <span>{homeChatBubbles.mint.text}</span>
-                  <div className="absolute -top-1.5 left-4 w-2.5 h-2.5 bg-white border-l-2 border-t-2 border-teal-500 transform rotate-45" />
+                  <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-2.5 h-2.5 bg-white border-l-2 border-t-2 border-teal-500 transform rotate-45" />
                 </div>
               </motion.div>
             )}
