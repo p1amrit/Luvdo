@@ -3,7 +3,6 @@ import { motion } from 'framer-motion';
 import { Player } from '../types/game';
 import { COLOR_STYLES } from '../utils/boardCoordinates';
 import { sounds } from '../services/soundEffects';
-import { BorderTimer } from './BorderTimer';
 
 interface DiceRollerProps {
   currentTurnPlayer: Player;
@@ -14,7 +13,6 @@ interface DiceRollerProps {
   onRoll: () => void;
   canRoll: boolean;
   compact?: boolean;
-  turnTimePercent?: number;
 }
 
 // 3D rotations required to display each face facing forward
@@ -43,8 +41,7 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({
   rollId,
   onRoll,
   canRoll,
-  compact = false,
-  turnTimePercent
+  compact = false
 }) => {
   const [isTumbling, setIsTumbling] = useState(false);
   const [rotation, setRotation] = useState<{ x: number; y: number; z: number }>({ x: 0, y: 0, z: 0 });
@@ -160,10 +157,9 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({
 
   return (
     <div className={`flex ${compact ? 'flex-row items-center justify-between px-3.5 py-2' : 'flex-col items-center justify-center p-3 sm:p-4'} rounded-2xl glass-panel shadow-xl border border-white/15 select-none touch-manipulation`}>
-      {/* Player Turn Status with Border Timer */}
+      {/* Player Turn Status */}
       <div className={`flex ${compact ? 'flex-col items-start gap-1' : 'items-center gap-1.5 mb-2'}`}>
-        <div className="relative inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/40 border border-white/10">
-          {turnTimePercent !== undefined && <BorderTimer percent={turnTimePercent} />}
+        <div className="relative inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-black/40 border border-white/10">
           <span className="text-xl sm:text-2xl">{currentTurnPlayer.avatar}</span>
           <span className={`text-xs sm:text-sm font-black ${colorStyle.textColor} truncate max-w-[130px]`}>
             {isMyTurn ? "Your Turn" : currentTurnPlayer.name}

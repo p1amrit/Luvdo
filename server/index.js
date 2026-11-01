@@ -36,12 +36,13 @@ const PORT = process.env.PORT || 4000;
 // Rooms store: roomId -> room object
 const rooms = new Map();
 
-const ROMANTIC_WORDS = ['HONEY', 'ROSE', 'CUPID', 'ANGEL', 'MOON', 'STAR', 'SWEET', 'DOVE', 'LOTUS', 'PEACH'];
-
+// 4-digit numeric room code (e.g. 4829, 1054)
 function generateRoomCode() {
-  const word = ROMANTIC_WORDS[Math.floor(Math.random() * ROMANTIC_WORDS.length)];
-  const num = Math.floor(10 + Math.random() * 90);
-  return `${word}-${num}`;
+  let code;
+  do {
+    code = Math.floor(1000 + Math.random() * 9000).toString();
+  } while (rooms.has(code));
+  return code;
 }
 
 app.get('/api/health', (req, res) => {

@@ -348,7 +348,7 @@ export const App: React.FC = () => {
 
   // Join Room
   const handleJoinRoom = () => {
-    const code = inputRoomCode.trim().toUpperCase();
+    const code = inputRoomCode.trim();
     if (!code) return;
 
     setRoomId(code);
@@ -621,7 +621,6 @@ export const App: React.FC = () => {
                   onRoll={handleRollDice}
                   canRoll={canRoll}
                   compact={true}
-                  turnTimePercent={turnTimePercent}
                 />
               </div>
 
@@ -636,7 +635,6 @@ export const App: React.FC = () => {
                   onRoll={handleRollDice}
                   canRoll={canRoll}
                   compact={false}
-                  turnTimePercent={turnTimePercent}
                 />
 
                 <div className="p-3.5 rounded-2xl glass-panel border border-white/10 text-center space-y-1">
@@ -730,14 +728,17 @@ export const App: React.FC = () => {
           <div className="w-full max-w-sm p-6 rounded-3xl glass-panel bg-slate-950/90 border border-white/20 shadow-2xl space-y-4 text-center">
             <h3 className="text-lg font-bold text-white">Join Room</h3>
             <p className="text-xs text-white/70">
-              Enter the room code shared by your friend or partner:
+              Enter the 4-digit room code:
             </p>
             <input
               type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              maxLength={4}
               value={inputRoomCode}
-              onChange={(e) => setInputRoomCode(e.target.value.toUpperCase())}
-              placeholder="e.g. HONEY-48"
-              className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white font-mono text-center tracking-widest text-lg font-bold uppercase focus:outline-none focus:ring-2 focus:ring-pink-500"
+              onChange={(e) => setInputRoomCode(e.target.value.replace(/\D/g, '').slice(0, 4))}
+              placeholder="e.g. 4829"
+              className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white font-mono text-center tracking-widest text-2xl font-bold focus:outline-none focus:ring-2 focus:ring-pink-500"
             />
             <div className="flex gap-2">
               <button
@@ -748,7 +749,7 @@ export const App: React.FC = () => {
               </button>
               <button
                 onClick={handleJoinRoom}
-                disabled={!inputRoomCode.trim()}
+                disabled={inputRoomCode.trim().length !== 4}
                 className="flex-1 py-2.5 rounded-xl bg-pink-600 hover:bg-pink-500 disabled:opacity-40 text-white text-xs font-bold shadow-lg"
               >
                 Join Match

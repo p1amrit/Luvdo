@@ -165,26 +165,33 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
 
         {/* 1. Base Corner: Rose (Top-Left, 0..5, 0..5) */}
         <div className="relative col-start-1 col-span-6 row-start-1 row-span-6 rounded-lg sm:rounded-xl bg-gradient-to-br from-rose-950/90 via-pink-900/70 to-rose-900/50 p-1.5 sm:p-2 border border-rose-500/40 flex flex-col justify-between">
-          <div className="flex items-center justify-between text-[10px] sm:text-xs font-bold px-0.5 sm:px-1 z-10">
-            <div className={`relative inline-flex items-center gap-1 px-2 py-0.5 rounded-full ${
-              currentPlayer?.color === 'rose'
-                ? 'bg-rose-950/90 border border-rose-400/60 shadow-[0_0_12px_rgba(244,63,94,0.35)]'
-                : 'bg-black/35 border border-white/10'
-            }`}>
-              {currentPlayer?.color === 'rose' && turnTimePercent !== undefined && (
-                <BorderTimer percent={turnTimePercent} />
-              )}
-              <span>🔴</span>
-              <span className="truncate max-w-[62px] sm:max-w-none text-rose-300 font-extrabold">
-                {rosePlayer?.name || 'Rose'}
+          {rosePlayer ? (
+            <div className="flex items-center justify-between text-[10px] sm:text-xs font-bold px-0.5 sm:px-1 z-10">
+              <div className={`relative inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg ${
+                currentPlayer?.color === 'rose'
+                  ? 'bg-rose-950/90 border border-rose-400/60 shadow-[0_0_12px_rgba(244,63,94,0.35)]'
+                  : 'bg-black/35 border border-white/10'
+              }`}>
+                {currentPlayer?.color === 'rose' && turnTimePercent !== undefined && (
+                  <BorderTimer percent={turnTimePercent} rx={8} />
+                )}
+                <span>🔴</span>
+                <span className="truncate max-w-[62px] sm:max-w-none text-rose-300 font-extrabold">
+                  {rosePlayer.name}
+                </span>
+              </div>
+              <span className="text-[9px] sm:text-[10px] bg-rose-500/30 text-rose-200 px-1.5 py-0.5 rounded-full border border-rose-400/40 font-black">
+                {rosePlayer.tokensHome || 0}/{gameState.targetTokensToWin}
               </span>
             </div>
-            <span className="text-[9px] sm:text-[10px] bg-rose-500/30 text-rose-200 px-1.5 py-0.5 rounded-full border border-rose-400/40 font-black">
-              {rosePlayer?.tokensHome || 0}/{gameState.targetTokensToWin}
-            </span>
-          </div>
+          ) : (
+            <div className="h-5" />
+          )}
+
           <div className="w-full h-full flex items-center justify-center">
-            <div className="grid grid-cols-2 gap-2 p-1.5 sm:p-2 rounded-lg sm:rounded-xl bg-black/45 border border-rose-500/30">
+            <div className={`grid grid-cols-2 gap-2 p-1.5 sm:p-2 rounded-lg sm:rounded-xl bg-black/45 border border-rose-500/30 ${
+              !rosePlayer ? 'opacity-20' : ''
+            }`}>
               {Array.from({ length: 4 }).map((_, i) => (
                 <div key={i} className="w-5 h-5 sm:w-7 sm:h-7 rounded-full border border-rose-400/50 bg-rose-950/60 flex items-center justify-center shadow-inner" />
               ))}
@@ -193,7 +200,7 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
 
           {/* Ludo King Speech Bubble: Rose */}
           <AnimatePresence>
-            {homeChatBubbles?.rose && (
+            {rosePlayer && homeChatBubbles?.rose && (
               <motion.div
                 key={`bubble-rose-${homeChatBubbles.rose.timestamp}`}
                 initial={{ scale: 0, opacity: 0, y: 10 }}
@@ -213,26 +220,33 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
 
         {/* 2. Base Corner: Lavender (Top-Right, 0..5, 9..14) */}
         <div className="relative col-start-10 col-span-6 row-start-1 row-span-6 rounded-lg sm:rounded-xl bg-gradient-to-br from-purple-950/90 via-indigo-900/70 to-purple-900/50 p-1.5 sm:p-2 border border-purple-500/40 flex flex-col justify-between">
-          <div className="flex items-center justify-between text-[10px] sm:text-xs font-bold px-0.5 sm:px-1 z-10">
-            <div className={`relative inline-flex items-center gap-1 px-2 py-0.5 rounded-full ${
-              currentPlayer?.color === 'lavender'
-                ? 'bg-purple-950/90 border border-purple-400/60 shadow-[0_0_12px_rgba(168,85,247,0.35)]'
-                : 'bg-black/35 border border-white/10'
-            }`}>
-              {currentPlayer?.color === 'lavender' && turnTimePercent !== undefined && (
-                <BorderTimer percent={turnTimePercent} />
-              )}
-              <span>🟣</span>
-              <span className="truncate max-w-[62px] sm:max-w-none text-purple-300 font-extrabold">
-                {lavenderPlayer?.name || 'Lavender'}
+          {lavenderPlayer ? (
+            <div className="flex items-center justify-between text-[10px] sm:text-xs font-bold px-0.5 sm:px-1 z-10">
+              <div className={`relative inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg ${
+                currentPlayer?.color === 'lavender'
+                  ? 'bg-purple-950/90 border border-purple-400/60 shadow-[0_0_12px_rgba(168,85,247,0.35)]'
+                  : 'bg-black/35 border border-white/10'
+              }`}>
+                {currentPlayer?.color === 'lavender' && turnTimePercent !== undefined && (
+                  <BorderTimer percent={turnTimePercent} rx={8} />
+                )}
+                <span>🟣</span>
+                <span className="truncate max-w-[62px] sm:max-w-none text-purple-300 font-extrabold">
+                  {lavenderPlayer.name}
+                </span>
+              </div>
+              <span className="text-[9px] sm:text-[10px] bg-purple-500/30 text-purple-200 px-1.5 py-0.5 rounded-full border border-purple-400/40 font-black">
+                {lavenderPlayer.tokensHome || 0}/{gameState.targetTokensToWin}
               </span>
             </div>
-            <span className="text-[9px] sm:text-[10px] bg-purple-500/30 text-purple-200 px-1.5 py-0.5 rounded-full border border-purple-400/40 font-black">
-              {lavenderPlayer?.tokensHome || 0}/{gameState.targetTokensToWin}
-            </span>
-          </div>
+          ) : (
+            <div className="h-5" />
+          )}
+
           <div className="w-full h-full flex items-center justify-center">
-            <div className="grid grid-cols-2 gap-2 p-1.5 sm:p-2 rounded-lg sm:rounded-xl bg-black/45 border border-purple-500/30">
+            <div className={`grid grid-cols-2 gap-2 p-1.5 sm:p-2 rounded-lg sm:rounded-xl bg-black/45 border border-purple-500/30 ${
+              !lavenderPlayer ? 'opacity-20' : ''
+            }`}>
               {Array.from({ length: 4 }).map((_, i) => (
                 <div key={i} className="w-5 h-5 sm:w-7 sm:h-7 rounded-full border border-purple-400/50 bg-purple-950/60 flex items-center justify-center shadow-inner" />
               ))}
@@ -241,7 +255,7 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
 
           {/* Ludo King Speech Bubble: Lavender */}
           <AnimatePresence>
-            {homeChatBubbles?.lavender && (
+            {lavenderPlayer && homeChatBubbles?.lavender && (
               <motion.div
                 key={`bubble-lavender-${homeChatBubbles.lavender.timestamp}`}
                 initial={{ scale: 0, opacity: 0, y: 10 }}
@@ -261,26 +275,33 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
 
         {/* 3. Base Corner: Peach (Bottom-Right, 9..14, 9..14) */}
         <div className="relative col-start-10 col-span-6 row-start-10 row-span-6 rounded-lg sm:rounded-xl bg-gradient-to-br from-amber-950/90 via-orange-900/70 to-amber-900/50 p-1.5 sm:p-2 border border-amber-500/40 flex flex-col justify-between">
-          <div className="flex items-center justify-between text-[10px] sm:text-xs font-bold px-0.5 sm:px-1 z-10">
-            <div className={`relative inline-flex items-center gap-1 px-2 py-0.5 rounded-full ${
-              currentPlayer?.color === 'peach'
-                ? 'bg-amber-950/90 border border-amber-400/60 shadow-[0_0_12px_rgba(245,158,11,0.35)]'
-                : 'bg-black/35 border border-white/10'
-            }`}>
-              {currentPlayer?.color === 'peach' && turnTimePercent !== undefined && (
-                <BorderTimer percent={turnTimePercent} />
-              )}
-              <span>🟡</span>
-              <span className="truncate max-w-[62px] sm:max-w-none text-amber-300 font-extrabold">
-                {peachPlayer?.name || 'Peach'}
+          {peachPlayer ? (
+            <div className="flex items-center justify-between text-[10px] sm:text-xs font-bold px-0.5 sm:px-1 z-10">
+              <div className={`relative inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg ${
+                currentPlayer?.color === 'peach'
+                  ? 'bg-amber-950/90 border border-amber-400/60 shadow-[0_0_12px_rgba(245,158,11,0.35)]'
+                  : 'bg-black/35 border border-white/10'
+              }`}>
+                {currentPlayer?.color === 'peach' && turnTimePercent !== undefined && (
+                  <BorderTimer percent={turnTimePercent} rx={8} />
+                )}
+                <span>🟡</span>
+                <span className="truncate max-w-[62px] sm:max-w-none text-amber-300 font-extrabold">
+                  {peachPlayer.name}
+                </span>
+              </div>
+              <span className="text-[9px] sm:text-[10px] bg-amber-500/30 text-amber-200 px-1.5 py-0.5 rounded-full border border-amber-400/40 font-black">
+                {peachPlayer.tokensHome || 0}/{gameState.targetTokensToWin}
               </span>
             </div>
-            <span className="text-[9px] sm:text-[10px] bg-amber-500/30 text-amber-200 px-1.5 py-0.5 rounded-full border border-amber-400/40 font-black">
-              {peachPlayer?.tokensHome || 0}/{gameState.targetTokensToWin}
-            </span>
-          </div>
+          ) : (
+            <div className="h-5" />
+          )}
+
           <div className="w-full h-full flex items-center justify-center">
-            <div className="grid grid-cols-2 gap-2 p-1.5 sm:p-2 rounded-lg sm:rounded-xl bg-black/45 border border-amber-500/30">
+            <div className={`grid grid-cols-2 gap-2 p-1.5 sm:p-2 rounded-lg sm:rounded-xl bg-black/45 border border-amber-500/30 ${
+              !peachPlayer ? 'opacity-20' : ''
+            }`}>
               {Array.from({ length: 4 }).map((_, i) => (
                 <div key={i} className="w-5 h-5 sm:w-7 sm:h-7 rounded-full border border-amber-400/50 bg-amber-950/60 flex items-center justify-center shadow-inner" />
               ))}
@@ -289,7 +310,7 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
 
           {/* Ludo King Speech Bubble: Peach */}
           <AnimatePresence>
-            {homeChatBubbles?.peach && (
+            {peachPlayer && homeChatBubbles?.peach && (
               <motion.div
                 key={`bubble-peach-${homeChatBubbles.peach.timestamp}`}
                 initial={{ scale: 0, opacity: 0, y: 10 }}
@@ -309,26 +330,33 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
 
         {/* 4. Base Corner: Mint (Bottom-Left, 9..14, 0..5) */}
         <div className="relative col-start-1 col-span-6 row-start-10 row-span-6 rounded-lg sm:rounded-xl bg-gradient-to-br from-teal-950/90 via-emerald-900/70 to-teal-900/50 p-1.5 sm:p-2 border border-teal-500/40 flex flex-col justify-between">
-          <div className="flex items-center justify-between text-[10px] sm:text-xs font-bold px-0.5 sm:px-1 z-10">
-            <div className={`relative inline-flex items-center gap-1 px-2 py-0.5 rounded-full ${
-              currentPlayer?.color === 'mint'
-                ? 'bg-teal-950/90 border border-teal-400/60 shadow-[0_0_12px_rgba(20,184,166,0.35)]'
-                : 'bg-black/35 border border-white/10'
-            }`}>
-              {currentPlayer?.color === 'mint' && turnTimePercent !== undefined && (
-                <BorderTimer percent={turnTimePercent} />
-              )}
-              <span>🟢</span>
-              <span className="truncate max-w-[62px] sm:max-w-none text-teal-300 font-extrabold">
-                {mintPlayer?.name || 'Mint'}
+          {mintPlayer ? (
+            <div className="flex items-center justify-between text-[10px] sm:text-xs font-bold px-0.5 sm:px-1 z-10">
+              <div className={`relative inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg ${
+                currentPlayer?.color === 'mint'
+                  ? 'bg-teal-950/90 border border-teal-400/60 shadow-[0_0_12px_rgba(20,184,166,0.35)]'
+                  : 'bg-black/35 border border-white/10'
+              }`}>
+                {currentPlayer?.color === 'mint' && turnTimePercent !== undefined && (
+                  <BorderTimer percent={turnTimePercent} rx={8} />
+                )}
+                <span>🟢</span>
+                <span className="truncate max-w-[62px] sm:max-w-none text-teal-300 font-extrabold">
+                  {mintPlayer.name}
+                </span>
+              </div>
+              <span className="text-[9px] sm:text-[10px] bg-teal-500/30 text-teal-200 px-1.5 py-0.5 rounded-full border border-teal-400/40 font-black">
+                {mintPlayer.tokensHome || 0}/{gameState.targetTokensToWin}
               </span>
             </div>
-            <span className="text-[9px] sm:text-[10px] bg-teal-500/30 text-teal-200 px-1.5 py-0.5 rounded-full border border-teal-400/40 font-black">
-              {mintPlayer?.tokensHome || 0}/{gameState.targetTokensToWin}
-            </span>
-          </div>
+          ) : (
+            <div className="h-5" />
+          )}
+
           <div className="w-full h-full flex items-center justify-center">
-            <div className="grid grid-cols-2 gap-2 p-1.5 sm:p-2 rounded-lg sm:rounded-xl bg-black/45 border border-teal-500/30">
+            <div className={`grid grid-cols-2 gap-2 p-1.5 sm:p-2 rounded-lg sm:rounded-xl bg-black/45 border border-teal-500/30 ${
+              !mintPlayer ? 'opacity-20' : ''
+            }`}>
               {Array.from({ length: 4 }).map((_, i) => (
                 <div key={i} className="w-5 h-5 sm:w-7 sm:h-7 rounded-full border border-teal-400/50 bg-teal-950/60 flex items-center justify-center shadow-inner" />
               ))}
@@ -337,7 +365,7 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
 
           {/* Ludo King Speech Bubble: Mint */}
           <AnimatePresence>
-            {homeChatBubbles?.mint && (
+            {mintPlayer && homeChatBubbles?.mint && (
               <motion.div
                 key={`bubble-mint-${homeChatBubbles.mint.timestamp}`}
                 initial={{ scale: 0, opacity: 0, y: 10 }}
