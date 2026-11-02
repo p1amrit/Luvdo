@@ -35,6 +35,8 @@ const PORT = process.env.PORT || 4000;
 
 // Rooms store: roomId -> room object
 const rooms = new Map();
+// Pending disconnect timers: `${roomId}-${playerId}` -> Timeout
+const disconnectTimers = new Map();
 
 // 4-digit numeric room code (e.g. 4829, 1054)
 function generateRoomCode() {
@@ -186,6 +188,13 @@ io.on('connection', (socket) => {
       existingPlayer.name = player.name || existingPlayer.name;
       existingPlayer.avatar = player.avatar || existingPlayer.avatar;
       existingPlayer.isOnline = true;
+
+      // Cancel disconnect timer if reconnected
+      const timerKey = `${roomId}-${player.id}`;
+      if (disconnectTimers.has(timerKey)) {
+        clearTimeout(disconnectTimers.get(timerKey));
+        disconnectTimers.delete(timerKey);
+      }
     } else {
       // Determine available color
       const usedColors = room.players.map(p => p.color);
@@ -476,33 +485,100 @@ io.on('connection', (socket) => {
     socket.to(roomId).emit('voice-user-left', { socketId: socket.id });
   });
 
+  // Leave Room
+  socket.on('leave-room', ({ roomId, playerId }) => {
+    const targetRoomId = roomId || socket.data.roomId;
+    const targetPlayerId = playerId || socket.data.playerId;
+    if (targetRoomId && targetPlayerId) {
+      socket.leave(targetRoomId);
+      handlePlayerDeparture(targetRoomId, targetPlayerId, true);
+    }
+  });
+
   // Disconnection
   socket.on('disconnect', () => {
     const roomId = socket.data.roomId;
     const playerId = socket.data.playerId;
 
-    if (roomId && rooms.has(roomId)) {
-      const room = rooms.get(roomId);
-      const player = room.players.find(p => p.id === playerId);
-      if (player) {
-        player.isOnline = false;
-        socket.to(roomId).emit('player-left-notice', { player });
-        io.to(roomId).emit('room-updated', { room });
-
-        // If disconnected player held the active turn, auto-pass to next player so match never freezes
-        if (room.gameState && !room.gameState.winner) {
-          const currentTurnPlayer = room.gameState.players[room.gameState.currentTurnIndex];
-          if (currentTurnPlayer?.id === playerId) {
-            passTurnToNextPlayer(room.gameState);
-            io.to(roomId).emit('turn-passed', { gameState: room.gameState });
-            checkAndPlayBotTurn(room);
-          }
-        }
-      }
+    if (roomId && playerId) {
+      handlePlayerDeparture(roomId, playerId, false);
     }
     console.log(`[Socket] Disconnected: ${socket.id}`);
   });
 });
+
+// Centralized Player Departure Handler (Handles Opponent Leaving -> Win by Forfeit)
+function handlePlayerDeparture(roomId, playerId, isImmediate = false) {
+  if (!roomId || !rooms.has(roomId)) return;
+  const room = rooms.get(roomId);
+  const player = room.players.find(p => p.id === playerId);
+  if (!player) return;
+
+  player.isOnline = false;
+  io.to(roomId).emit('player-left-notice', { player });
+
+  const processDeparture = () => {
+    if (!rooms.has(roomId)) return;
+    const currentRoom = rooms.get(roomId);
+    const p = currentRoom.players.find(x => x.id === playerId);
+    if (!p || p.isOnline) return;
+
+    if (currentRoom.gameState && !currentRoom.gameState.winner && currentRoom.status === 'playing') {
+      // Find remaining online active players
+      const activePlayers = currentRoom.gameState.players.filter(gp => {
+        const rp = currentRoom.players.find(x => x.id === gp.id);
+        return rp ? rp.isOnline : false;
+      });
+
+      // Declare winner when opponent left the game (only 1 player remains)
+      if (activePlayers.length === 1) {
+        const remainingWinner = activePlayers[0];
+        remainingWinner.hasWon = true;
+        currentRoom.gameState.winner = {
+          player: remainingWinner,
+          mode: currentRoom.gameState.mode,
+          byForfeit: true
+        };
+        currentRoom.gameState.lastEvent = {
+          type: 'victory',
+          text: `🏆 ${remainingWinner.name} won! Opponent left the game.`,
+          color: remainingWinner.color
+        };
+        currentRoom.status = 'ended';
+
+        io.to(roomId).emit('game-ended', { gameState: currentRoom.gameState, winner: remainingWinner });
+        io.to(roomId).emit('token-moved', { gameState: currentRoom.gameState });
+        io.to(roomId).emit('room-updated', { room: currentRoom });
+        return;
+      }
+
+      // If multiple players still remain, pass the turn if it was the leaving player's turn
+      const currentTurnPlayer = currentRoom.gameState.players[currentRoom.gameState.currentTurnIndex];
+      if (currentTurnPlayer?.id === playerId) {
+        passTurnToNextPlayer(currentRoom.gameState);
+        io.to(roomId).emit('turn-passed', { gameState: currentRoom.gameState });
+        checkAndPlayBotTurn(currentRoom);
+      }
+    }
+
+    io.to(roomId).emit('room-updated', { room: currentRoom });
+  };
+
+  if (isImmediate) {
+    processDeparture();
+  } else {
+    // 3s grace period for socket reconnects / page reloads
+    const timerKey = `${roomId}-${playerId}`;
+    if (disconnectTimers.has(timerKey)) {
+      clearTimeout(disconnectTimers.get(timerKey));
+    }
+    const timer = setTimeout(() => {
+      disconnectTimers.delete(timerKey);
+      processDeparture();
+    }, 3000);
+    disconnectTimers.set(timerKey, timer);
+  }
+}
 
 // Production fallback: serve index.html for all non-API GET requests
 app.use((req, res, next) => {

@@ -6,6 +6,7 @@ import { socketService } from '../services/socket';
 
 interface VictoryModalProps {
   winner: Player;
+  byForfeit?: boolean;
   myPlayerId: string;
   roomId: string;
   vibe?: RoomVibe;
@@ -14,6 +15,7 @@ interface VictoryModalProps {
 
 export const VictoryModal: React.FC<VictoryModalProps> = ({
   winner,
+  byForfeit = false,
   myPlayerId,
   roomId,
   vibe = 'friends',
@@ -74,14 +76,18 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
         </div>
 
         <h2 className="text-2xl sm:text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-pink-300 via-yellow-200 to-purple-300">
-          {isMe ? 'You Won the Game!' : `${winner.name} is the Champion!`}
+          {isMe
+            ? (byForfeit ? '🏆 You Won! Opponent Left the Game' : 'You Won the Game!')
+            : (byForfeit ? `🏆 ${winner.name} Won! Opponent Left` : `${winner.name} is the Champion!`)}
         </h2>
 
         <p className="text-sm text-pink-200/90 mt-1 mb-6">
-          {isMe
+          {byForfeit
+            ? 'The opponent left the match — victory and bragging rights belong to you!'
+            : isMe
             ? (vibe === 'couple'
-                ? 'The Love Sanctuary belongs to you! Claim your romantic prize below.'
-                : 'Complete domination! Claim your bragging rights or snack tax.')
+                ? 'All 4 tokens reached the Love Sanctuary! Claim your romantic prize below.'
+                : 'All 4 tokens home! Claim your bragging rights or snack tax.')
             : (vibe === 'couple'
                 ? 'A wonderful date match! Time to pamper the winner with love.'
                 : 'Good game all! Winner takes all the glory.')}

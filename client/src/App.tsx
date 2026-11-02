@@ -265,6 +265,10 @@ export const App: React.FC = () => {
       setGameState({ ...newGameState });
     });
 
+    socket.on('game-ended', ({ gameState: newGameState }: { gameState: GameState }) => {
+      setGameState({ ...newGameState });
+    });
+
     socket.on('turn-passed', ({ gameState: newGameState }: { gameState: GameState }) => {
       setGameState({ ...newGameState });
     });
@@ -390,6 +394,9 @@ export const App: React.FC = () => {
     setShowLeaveModal(false);
     if (voiceChatService.getIsActive()) {
       voiceChatService.stopVoice();
+    }
+    if ((room?.id || roomId) && myPlayerId) {
+      socketService.leaveRoom(room?.id || roomId, myPlayerId);
     }
     setInRoom(false);
     setRoom(null);
@@ -691,6 +698,7 @@ export const App: React.FC = () => {
       {inRoom && gameState?.winner && (
         <VictoryModal
           winner={gameState.winner.player}
+          byForfeit={gameState.winner.byForfeit}
           myPlayerId={myPlayerId}
           roomId={room?.id || roomId}
           vibe={room?.vibe}

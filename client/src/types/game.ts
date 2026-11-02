@@ -59,6 +59,7 @@ export interface GameState {
   winner: {
     player: Player;
     mode: GameMode;
+    byForfeit?: boolean;
   } | null;
   lastEvent: GameEvent;
   activeDare: {

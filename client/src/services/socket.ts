@@ -79,6 +79,10 @@ class SocketService {
     this.getSocket().emit('join-room', { roomId, player });
   }
 
+  public leaveRoom(roomId: string, playerId: string) {
+    this.getSocket().emit('leave-room', { roomId, playerId });
+  }
+
   public updateRoomSettings(roomId: string, settings: {
     theme?: AestheticTheme;
     vibe?: RoomVibe;

@@ -21,8 +21,16 @@ interface LudoBoardProps {
   turnTimePercent?: number;
 }
 
-// Traditional 8 safe positions on the 52-tile track
-const TRADITIONAL_SAFE_TILES = [0, 8, 13, 21, 26, 34, 39, 47];
+// 4 Starting Squares (where tokens launch onto the board in traditional Ludo)
+const STARTING_TILES: Record<number, { color: PlayerColor; arrow: string; dirLabel: string }> = {
+  0: { color: 'rose', arrow: '▶', dirLabel: 'START' },      // Rose arm, moving East
+  13: { color: 'lavender', arrow: '▼', dirLabel: 'START' }, // Lavender arm, moving South
+  26: { color: 'peach', arrow: '◀', dirLabel: 'START' },    // Peach arm, moving West
+  39: { color: 'mint', arrow: '▲', dirLabel: 'START' }      // Mint arm, moving North
+};
+
+// 4 Safe Stumps (traditional Charkoni / Star sanctuaries where tokens are immune to capture)
+const SAFE_STUMP_INDICES = [8, 21, 34, 47];
 
 export const LudoBoard: React.FC<LudoBoardProps> = ({
   gameState,
@@ -152,16 +160,41 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
     }
   };
 
-  // Traditional Ludo Star Icons on safe spots
+  // Traditional Ludo visual elements on track tiles
   const getSpecialCellContent = (r: number, c: number) => {
     const mainIndex = MAIN_TRACK_COORDS.findIndex(item => item.r === r && item.c === c);
-    if (mainIndex !== -1 && TRADITIONAL_SAFE_TILES.includes(mainIndex)) {
+    if (mainIndex === -1) return null;
+
+    // 1. Starting Squares: Traditional colored entry tile with directional arrow & START badge
+    if (STARTING_TILES[mainIndex]) {
+      const startInfo = STARTING_TILES[mainIndex];
       return (
-        <span className="text-yellow-400 text-xs sm:text-sm font-black filter drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] select-none">
-          ⭐
-        </span>
+        <div className="w-full h-full flex flex-col items-center justify-center pointer-events-none select-none leading-none gap-0.5">
+          <span className="text-[10px] sm:text-xs text-white font-black filter drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]">
+            {startInfo.arrow}
+          </span>
+          <span className="text-[6.5px] sm:text-[8px] font-black uppercase tracking-tighter text-white/90">
+            {startInfo.dirLabel}
+          </span>
+        </div>
       );
     }
+
+    // 2. Safe Stumps (Indices 8, 21, 34, 47): Traditional golden charkoni sanctuary with star shield
+    if (SAFE_STUMP_INDICES.includes(mainIndex)) {
+      return (
+        <div className="w-full h-full flex items-center justify-center pointer-events-none select-none relative p-0.5">
+          {/* Inner traditional dashed charkoni cross-border */}
+          <div className="absolute inset-0.5 border border-dashed border-amber-300/40 rounded pointer-events-none" />
+          <div className="relative w-4 h-4 sm:w-5 sm:h-5 rounded bg-amber-400/25 border border-amber-300/90 flex items-center justify-center shadow-[0_0_8px_rgba(251,191,36,0.6)]">
+            <span className="text-amber-200 text-[10px] sm:text-xs font-black filter drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]">
+              ⭐
+            </span>
+          </div>
+        </div>
+      );
+    }
+
     return null;
   };
 
@@ -394,15 +427,22 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
             const runwayColor = getRunwayColor(r, c);
             const specialContent = getSpecialCellContent(r, c);
 
-            // Starting squares highlight
+            // Starting squares & Safe Stumps highlight
             const mainIndex = MAIN_TRACK_COORDS.findIndex(item => item.r === r && item.c === c);
             let cellBg = 'bg-white/[0.05] hover:bg-white/[0.1]';
 
-            if (mainIndex === 0) cellBg = 'bg-rose-600/40 border-rose-400/50';
-            else if (mainIndex === 13) cellBg = 'bg-purple-600/40 border-purple-400/50';
-            else if (mainIndex === 26) cellBg = 'bg-amber-600/40 border-amber-400/50';
-            else if (mainIndex === 39) cellBg = 'bg-teal-600/40 border-teal-400/50';
-            else if (runwayColor === 'rose') cellBg = 'bg-rose-500/40 border-rose-400/40';
+            if (mainIndex === 0) {
+              cellBg = 'bg-gradient-to-br from-rose-600/80 via-rose-700/70 to-pink-800/70 border-2 border-rose-400 shadow-[0_0_12px_rgba(244,63,94,0.4)]';
+            } else if (mainIndex === 13) {
+              cellBg = 'bg-gradient-to-br from-purple-600/80 via-purple-700/70 to-indigo-800/70 border-2 border-purple-400 shadow-[0_0_12px_rgba(168,85,247,0.4)]';
+            } else if (mainIndex === 26) {
+              cellBg = 'bg-gradient-to-br from-amber-600/80 via-orange-700/70 to-amber-800/70 border-2 border-amber-400 shadow-[0_0_12px_rgba(251,146,60,0.4)]';
+            } else if (mainIndex === 39) {
+              cellBg = 'bg-gradient-to-br from-teal-600/80 via-emerald-700/70 to-teal-800/70 border-2 border-teal-400 shadow-[0_0_12px_rgba(45,212,191,0.4)]';
+            } else if (SAFE_STUMP_INDICES.includes(mainIndex)) {
+              // 4 Traditional Safe Stumps
+              cellBg = 'bg-gradient-to-br from-amber-950/80 via-slate-900/95 to-yellow-950/70 border-2 border-amber-400/80 shadow-[inset_0_0_8px_rgba(251,191,36,0.35),0_0_10px_rgba(245,158,11,0.35)]';
+            } else if (runwayColor === 'rose') cellBg = 'bg-rose-500/40 border-rose-400/40';
             else if (runwayColor === 'lavender') cellBg = 'bg-purple-500/40 border-purple-400/40';
             else if (runwayColor === 'peach') cellBg = 'bg-amber-500/40 border-amber-400/40';
             else if (runwayColor === 'mint') cellBg = 'bg-teal-500/40 border-teal-400/40';
@@ -456,72 +496,145 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
           ));
         })}
 
-        {/* Tokens Overlay with Fast Hopping & Reverse Rewinding Kill Animation */}
-        {placedTokens.map((item) => {
-          const colorCfg = COLOR_STYLES[item.playerColor];
-          const isSelectedMovable = item.isMovable;
-          const isHopping = item.isHopping;
-          const isRewinding = item.isRewinding;
+        {/* Tokens Overlay with Fast Hopping, Safe Stump Multi-Token Clustering, & Kill Rewind */}
+        {(() => {
+          // Group tokens by coordinate so multiple tokens on the same safe stump or tile never obscure each other
+          const cellTokensMap = new Map<string, typeof placedTokens>();
+          placedTokens.forEach((t) => {
+            const cellKey = `${t.coord.r}-${t.coord.c}`;
+            if (!cellTokensMap.has(cellKey)) {
+              cellTokensMap.set(cellKey, []);
+            }
+            cellTokensMap.get(cellKey)!.push(t);
+          });
 
-          return (
-            <motion.div
-              key={`token-${item.playerColor}-${item.token.id}`}
-              layout
-              transition={
-                isRewinding
-                  ? { duration: 0.045, ease: "linear" }
-                  : { type: "spring", stiffness: 550, damping: 25 }
+          return placedTokens.map((item) => {
+            const colorCfg = COLOR_STYLES[item.playerColor];
+            const isSelectedMovable = item.isMovable;
+            const isHopping = item.isHopping;
+            const isRewinding = item.isRewinding;
+
+            const cellKey = `${item.coord.r}-${item.coord.c}`;
+            const cellGroup = cellTokensMap.get(cellKey) || [item];
+            const clusterCount = cellGroup.length;
+            const clusterIndex = cellGroup.indexOf(item);
+
+            // Compute cluster offset & scale when multiple tokens occupy the same cell
+            let clusterX = 0;
+            let clusterY = 0;
+            let clusterScale = 1;
+
+            if (clusterCount === 2) {
+              clusterScale = 0.82;
+              if (clusterIndex === 0) {
+                clusterX = -4.5;
+                clusterY = -4.5;
+              } else {
+                clusterX = 4.5;
+                clusterY = 4.5;
               }
-              style={{
-                gridRowStart: item.coord.r + 1,
-                gridColumnStart: item.coord.c + 1
-              }}
-              animate={
-                isRewinding
-                  ? { scale: 1.15, rotate: -360, y: -6 }
-                  : isHopping
-                  ? { scale: [1, 1.25, 1], y: [0, -8, 0], rotate: 0 }
-                  : isSelectedMovable
-                  ? { scale: [1, 1.1, 1], y: [0, -2, 0], rotate: 0 }
-                  : { scale: 1, opacity: 1, y: 0, rotate: 0 }
+            } else if (clusterCount === 3) {
+              clusterScale = 0.72;
+              if (clusterIndex === 0) {
+                clusterX = -5.5;
+                clusterY = -5;
+              } else if (clusterIndex === 1) {
+                clusterX = 5.5;
+                clusterY = -5;
+              } else {
+                clusterX = 0;
+                clusterY = 5.5;
               }
-              onClick={(e) => {
-                e.stopPropagation();
-                if (isSelectedMovable) {
-                  sounds.playTokenStep();
-                  onSelectToken(item.token.id);
+            } else if (clusterCount >= 4) {
+              clusterScale = 0.65;
+              if (clusterIndex === 0) {
+                clusterX = -5.5;
+                clusterY = -5.5;
+              } else if (clusterIndex === 1) {
+                clusterX = 5.5;
+                clusterY = -5.5;
+              } else if (clusterIndex === 2) {
+                clusterX = -5.5;
+                clusterY = 5.5;
+              } else {
+                clusterX = 5.5;
+                clusterY = 5.5;
+              }
+            }
+
+            return (
+              <motion.div
+                key={`token-${item.playerColor}-${item.token.id}`}
+                layout
+                transition={
+                  isRewinding
+                    ? { duration: 0.045, ease: 'linear' }
+                    : { type: 'spring', stiffness: 550, damping: 25 }
                 }
-              }}
-              className={`z-30 w-full h-full flex items-center justify-center touch-manipulation active:scale-90 transition-transform ${
-                isSelectedMovable ? 'cursor-pointer hover:scale-105' : 'pointer-events-none'
-              }`}
-            >
-              <div
-                className={`relative w-5 h-5 sm:w-7 sm:h-7 rounded-full flex items-center justify-center border sm:border-2 border-white shadow-sm transition-transform active:scale-95 ${
-                  colorCfg.tokenBg
-                } ${
-                  isSelectedMovable
-                    ? 'ring-2 ring-white/90 ring-offset-1 ring-offset-slate-900 shadow-[0_0_8px_rgba(255,255,255,0.8)]'
-                    : ''
+                style={{
+                  gridRowStart: item.coord.r + 1,
+                  gridColumnStart: item.coord.c + 1
+                }}
+                animate={
+                  isRewinding
+                    ? { scale: 1.15, rotate: -360, y: -6, x: 0 }
+                    : isHopping
+                    ? { scale: [1, 1.25, 1], y: [0, -8, 0], x: 0, rotate: 0 }
+                    : isSelectedMovable
+                    ? {
+                        scale: [clusterScale, clusterScale * 1.18, clusterScale],
+                        y: [clusterY, clusterY - 3, clusterY],
+                        x: clusterX,
+                        rotate: 0
+                      }
+                    : {
+                        scale: clusterScale,
+                        x: clusterX,
+                        y: clusterY,
+                        rotate: 0,
+                        opacity: 1
+                      }
+                }
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (isSelectedMovable) {
+                    sounds.playTokenStep();
+                    onSelectToken(item.token.id);
+                  }
+                }}
+                className={`${
+                  isSelectedMovable ? 'z-40' : 'z-30'
+                } w-full h-full flex items-center justify-center touch-manipulation active:scale-90 transition-transform ${
+                  isSelectedMovable ? 'cursor-pointer hover:scale-105' : 'pointer-events-none'
                 }`}
               >
-                {/* Expanded touch target for effortless tapping on mobile */}
-                {isSelectedMovable && (
-                  <div className="absolute -inset-3 sm:-inset-2 rounded-full cursor-pointer -z-10" />
-                )}
+                <div
+                  className={`relative w-5 h-5 sm:w-7 sm:h-7 rounded-full flex items-center justify-center border sm:border-2 border-white shadow-md transition-transform active:scale-95 ${
+                    colorCfg.tokenBg
+                  } ${
+                    isSelectedMovable
+                      ? 'ring-2 ring-white/90 ring-offset-1 ring-offset-slate-900 shadow-[0_0_10px_rgba(255,255,255,0.9)]'
+                      : ''
+                  }`}
+                >
+                  {/* Expanded touch target for effortless tapping on mobile */}
+                  {isSelectedMovable && (
+                    <div className="absolute -inset-3 sm:-inset-2 rounded-full cursor-pointer -z-10" />
+                  )}
 
-                <span className="text-[9px] sm:text-xs font-bold leading-none select-none">
-                  {colorCfg.emoji}
-                </span>
+                  <span className="text-[9px] sm:text-xs font-bold leading-none select-none">
+                    {colorCfg.emoji}
+                  </span>
 
-                {/* Subtle indicator dot on eligible token */}
-                {isSelectedMovable && (
-                  <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-emerald-400 border border-slate-900" />
-                )}
-              </div>
-            </motion.div>
-          );
-        })}
+                  {/* Subtle indicator dot on eligible token */}
+                  {isSelectedMovable && (
+                    <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-emerald-400 border border-slate-900" />
+                  )}
+                </div>
+              </motion.div>
+            );
+          });
+        })()}
 
       </div>
     </div>

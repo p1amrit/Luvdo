@@ -71,7 +71,7 @@ export function createInitialGameState(playerConfigs = [], options = {}) {
     vibe,
     gentleMode,
     quickMode,
-    targetTokensToWin: quickMode ? 2 : 4,
+    targetTokensToWin: 4, // Declare winner only when all 4 tokens reach the home chamber
     players,
     currentTurnIndex: 0,
     diceValue: null,
@@ -229,7 +229,7 @@ export function moveToken(gameState, tokenId) {
         };
         gameState.lastEvent = {
           type: 'victory',
-          text: `🎉 ${currentPlayer.name} has won the match!`,
+          text: `🎉 ${currentPlayer.name} has won the match! All 4 tokens home! 🏆`,
           color: currentPlayer.color
         };
         return true;
