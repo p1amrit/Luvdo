@@ -69,10 +69,20 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
     shadow: HTMLDivElement;
   }>>(new Map());
 
-  // 60FPS / 120FPS Native RAF Parabolic Motion Engine
-  // ZERO React re-renders during motion. Every frame computed at native display refresh rate.
+  // 1. Cleanup ONLY on component unmount (NEVER on gameState updates!)
   useEffect(() => {
-    // 1. Detect any moving attacker in this state update to sync capture strike impact
+    return () => {
+      Object.values(activeRafRef.current).forEach(id => cancelAnimationFrame(id));
+      activeRafRef.current = {};
+      Object.values(activeTimersRef.current).forEach(timers => timers.forEach(t => clearTimeout(t)));
+      activeTimersRef.current = {};
+    };
+  }, []);
+
+  // 2. 60FPS / 120FPS Parabolic Motion Engine
+  // Runs uninterrupted across gameState updates until the token arrives exactly at its target
+  useEffect(() => {
+    // Detect any moving attacker in this state update to sync capture strike impact
     let maxAttackerDuration = 0;
     gameState.players.forEach(p => {
       p.tokens.forEach(t => {
@@ -86,7 +96,6 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
       });
     });
 
-    // 2. Animate tokens
     gameState.players.forEach(player => {
       player.tokens.forEach(token => {
         const key = `${player.color}-${token.id}`;
@@ -96,22 +105,40 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
         // On first mount, record position without playing animations
         if (prevProg === undefined) {
           prevProgressRef.current[key] = targetProg;
+          const el = tokenNodesRef.current.get(key);
+          if (el) {
+            const initialCoord = getCoordForProgress(player.color, targetProg, token.id);
+            el.root.style.transform = `translate3d(${initialCoord.c * 100}%, ${initialCoord.r * 100}%, 0)`;
+            el.pawn.style.transform = `translate3d(0px, 0px, 0) scale(1) rotate(-${boardRotation}deg)`;
+          }
           return;
         }
 
-        // If progress didn't change, do not disturb ongoing animations
-        if (prevProg === targetProg) return;
+        // If progress didn't change:
+        // If this token is NOT currently mid-animation, ensure it is firmly snapped to its authoritative position!
+        if (prevProg === targetProg) {
+          if (!activeRafRef.current[key]) {
+            const el = tokenNodesRef.current.get(key);
+            if (el) {
+              const currentCoord = getCoordForProgress(player.color, targetProg, token.id);
+              el.root.style.transform = `translate3d(${currentCoord.c * 100}%, ${currentCoord.r * 100}%, 0)`;
+              el.pawn.style.transform = `translate3d(0px, 0px, 0) scale(1) rotate(-${boardRotation}deg)`;
+              el.shadow.style.transform = 'scale(1)';
+              el.shadow.style.opacity = '0.65';
+            }
+          }
+          return;
+        }
 
         // Progress changed -> update stored progress
         prevProgressRef.current[key] = targetProg;
 
-        // Cancel any active RAF for this token
+        // Cancel previous animation for THIS specific token only
         if (activeRafRef.current[key]) {
           cancelAnimationFrame(activeRafRef.current[key]);
           delete activeRafRef.current[key];
         }
 
-        // Clear any pending timers for this token
         if (activeTimersRef.current[key]) {
           activeTimersRef.current[key].forEach(t => clearTimeout(t));
           activeTimersRef.current[key] = [];
@@ -129,39 +156,40 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
           }
 
           const stepsCount = waypoints.length - 1;
-          const hopDuration = 125; // 125ms per hop matches Ludo King physics perfectly
+          const hopDuration = 125;
           const totalDuration = stepsCount * hopDuration;
           const startTime = performance.now();
           let lastStepSound = 0;
 
           const animateForward = (now: number) => {
             const currentEl = tokenNodesRef.current.get(key);
-            if (!currentEl) return;
+            if (!currentEl) {
+              delete activeRafRef.current[key];
+              return;
+            }
 
             const elapsed = now - startTime;
             const progressRatio = Math.min(1.0, elapsed / totalDuration);
             const totalHopProgress = progressRatio * stepsCount;
             const currentHop = Math.min(stepsCount - 1, Math.floor(totalHopProgress));
-            const subT = totalHopProgress - currentHop; // 0.0 to 1.0 within this specific hop
+            const subT = totalHopProgress - currentHop;
 
             const from = waypoints[currentHop];
             const to = waypoints[currentHop + 1];
 
-            // Linear position interpolation between tile centers
             const c = from.c + (to.c - from.c) * subT;
             const r = from.r + (to.r - from.r) * subT;
 
-            // Parabolic vertical jump arc (height reaches 13px at subT = 0.5, lands at 0px)
+            // Parabolic vertical jump arc (13px peak at subT = 0.5)
             const arc = 4 * subT * (1 - subT);
             const hopY = arc * 13;
 
-            // Sound on touchdown
+            // Touchdown sound trigger
             if (currentHop + 1 > lastStepSound && subT >= 0.85) {
               lastStepSound = currentHop + 1;
               sounds.playTokenStep(lastStepSound);
             }
 
-            // Direct GPU transform on compositor thread
             currentEl.root.style.transform = `translate3d(${c * 100}%, ${r * 100}%, 0)`;
             currentEl.pawn.style.transform = `translate3d(0px, ${-hopY}px, 0) scale(${1 + arc * 0.12}) rotate(-${boardRotation}deg)`;
             currentEl.shadow.style.transform = `scale(${1 - arc * 0.28})`;
@@ -177,7 +205,6 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
               currentEl.shadow.style.transform = 'scale(1)';
               currentEl.shadow.style.opacity = '0.65';
 
-              // Landing event sounds
               if (targetProg === 56) {
                 sounds.playHomeArrival();
               } else if (targetProg >= 0 && targetProg <= 50) {
@@ -202,7 +229,10 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
 
           const animateSpawn = (now: number) => {
             const currentEl = tokenNodesRef.current.get(key);
-            if (!currentEl) return;
+            if (!currentEl) {
+              delete activeRafRef.current[key];
+              return;
+            }
 
             const elapsed = now - startTime;
             const t = Math.min(1.0, elapsed / spawnDuration);
@@ -229,7 +259,7 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
         else if (targetProg === -1 && prevProg >= 0) {
           const impactDelay = maxAttackerDuration > 0 ? maxAttackerDuration : 0;
 
-          // Reverse waypoints from prevProg back to 0, then into -1 (base slot)
+          // Reverse waypoints from prevProg back to 0, then directly into -1 (base slot)
           const waypoints: GridCoord[] = [];
           for (let p = prevProg; p >= 0; p--) {
             waypoints.push(getCoordForProgress(player.color, p, token.id));
@@ -240,7 +270,7 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
           const rewindStepDuration = Math.max(18, Math.min(28, Math.floor(400 / stepsCount)));
           const totalRewindDuration = stepsCount * rewindStepDuration;
 
-          // Hold victim in place until attacker lands
+          // Hold victim at strike location until attacker lands
           const victimCoord = getCoordForProgress(player.color, prevProg, token.id);
           if (node) {
             node.root.style.transform = `translate3d(${victimCoord.c * 100}%, ${victimCoord.r * 100}%, 0)`;
@@ -253,7 +283,10 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
             const startTime = performance.now();
             const animateRewind = (now: number) => {
               const currentEl = tokenNodesRef.current.get(key);
-              if (!currentEl) return;
+              if (!currentEl) {
+                delete activeRafRef.current[key];
+                return;
+              }
 
               const elapsed = now - startTime;
               const progressRatio = Math.min(1.0, elapsed / totalRewindDuration);
@@ -288,12 +321,6 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
         }
       });
     });
-
-    return () => {
-      // Cleanup any active animation loops on unmount
-      Object.values(activeRafRef.current).forEach(id => cancelAnimationFrame(id));
-      Object.values(activeTimersRef.current).forEach(timers => timers.forEach(t => clearTimeout(t)));
-    };
   }, [gameState, boardRotation]);
 
   // Map every token to its current grid row & col coordinate
@@ -331,7 +358,7 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
 
   // 100% MEMOIZED STATIC BOARD GRID:
   // 225 track cells, 4 corner yard bases, center triangles SVG, and 16 base slots.
-  // This NEVER re-renders during token hops, giving 0-lag 60fps on low-end mobile devices!
+  // gap-0 ensures 100% pixel-perfect alignment between grid cells and absolute tokens!
   const staticBoardGrid = useMemo(() => {
     const getSpecialCellContent = (r: number, c: number) => {
       const mainIndex = MAIN_TRACK_COORDS.findIndex(item => item.r === r && item.c === c);
@@ -390,28 +417,28 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
         <div className={`relative col-start-1 col-span-6 row-start-1 row-span-6 rounded-2xl bg-gradient-to-br from-rose-950/90 via-pink-900/60 to-rose-900/40 p-2 sm:p-2.5 border-2 border-rose-500/50 flex items-center justify-center shadow-lg ${
           !rosePlayer ? 'opacity-30' : ''
         }`}>
-          <div className="w-[80%] h-[80%] rounded-2xl bg-white/[0.08] border border-rose-400/30 shadow-[inset_0_2px_8px_rgba(255,255,255,0.1),0_4px_16px_rgba(0,0,0,0.5)] flex items-center justify-center" />
+          <div className="w-[82%] h-[82%] rounded-2xl bg-white/[0.08] border border-rose-400/30 shadow-[inset_0_2px_8px_rgba(255,255,255,0.1),0_4px_16px_rgba(0,0,0,0.5)] flex items-center justify-center" />
         </div>
 
         {/* 2. Base Corner: Lavender (Top-Right, 0..5, 9..14) */}
         <div className={`relative col-start-10 col-span-6 row-start-1 row-span-6 rounded-2xl bg-gradient-to-br from-purple-950/90 via-indigo-900/60 to-purple-900/40 p-2 sm:p-2.5 border-2 border-purple-500/50 flex items-center justify-center shadow-lg ${
           !lavenderPlayer ? 'opacity-30' : ''
         }`}>
-          <div className="w-[80%] h-[80%] rounded-2xl bg-white/[0.08] border border-purple-400/30 shadow-[inset_0_2px_8px_rgba(255,255,255,0.1),0_4px_16px_rgba(0,0,0,0.5)] flex items-center justify-center" />
+          <div className="w-[82%] h-[82%] rounded-2xl bg-white/[0.08] border border-purple-400/30 shadow-[inset_0_2px_8px_rgba(255,255,255,0.1),0_4px_16px_rgba(0,0,0,0.5)] flex items-center justify-center" />
         </div>
 
         {/* 3. Base Corner: Peach (Bottom-Right, 9..14, 9..14) */}
         <div className={`relative col-start-10 col-span-6 row-start-10 row-span-6 rounded-2xl bg-gradient-to-br from-amber-950/90 via-orange-900/60 to-amber-900/40 p-2 sm:p-2.5 border-2 border-amber-500/50 flex items-center justify-center shadow-lg ${
           !peachPlayer ? 'opacity-30' : ''
         }`}>
-          <div className="w-[80%] h-[80%] rounded-2xl bg-white/[0.08] border border-amber-400/30 shadow-[inset_0_2px_8px_rgba(255,255,255,0.1),0_4px_16px_rgba(0,0,0,0.5)] flex items-center justify-center" />
+          <div className="w-[82%] h-[82%] rounded-2xl bg-white/[0.08] border border-amber-400/30 shadow-[inset_0_2px_8px_rgba(255,255,255,0.1),0_4px_16px_rgba(0,0,0,0.5)] flex items-center justify-center" />
         </div>
 
         {/* 4. Base Corner: Mint (Bottom-Left, 9..14, 0..5) */}
         <div className={`relative col-start-1 col-span-6 row-start-10 row-span-6 rounded-2xl bg-gradient-to-br from-teal-950/90 via-emerald-900/60 to-teal-900/40 p-2 sm:p-2.5 border-2 border-teal-500/50 flex items-center justify-center shadow-lg ${
           !mintPlayer ? 'opacity-30' : ''
         }`}>
-          <div className="w-[80%] h-[80%] rounded-2xl bg-white/[0.08] border border-teal-400/30 shadow-[inset_0_2px_8px_rgba(255,255,255,0.1),0_4px_16px_rgba(0,0,0,0.5)] flex items-center justify-center" />
+          <div className="w-[82%] h-[82%] rounded-2xl bg-white/[0.08] border border-teal-400/30 shadow-[inset_0_2px_8px_rgba(255,255,255,0.1),0_4px_16px_rgba(0,0,0,0.5)] flex items-center justify-center" />
         </div>
 
         {/* Center: Traditional 4-Triangle Ludo Home (rows 6..8, cols 6..8) */}
@@ -529,10 +556,12 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
     );
   }, [boardRotation, !!rosePlayer, !!lavenderPlayer, !!peachPlayer, !!mintPlayer]);
 
-  // Group tokens by coordinate so multiple tokens on the same tile/stump cluster neatly
+  // Group tokens by coordinate on the track (never in the yard!)
   const cellTokensMap = useMemo(() => {
     const map = new Map<string, typeof placedTokens>();
     placedTokens.forEach((t) => {
+      // In base yard (progress === -1), tokens have their own independent slots and do NOT cluster
+      if (t.token.progress === -1) return;
       const cellKey = `${t.coord.r}-${t.coord.c}`;
       if (!map.has(cellKey)) {
         map.set(cellKey, []);
@@ -547,9 +576,9 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
       onClick={handleBoardClick}
       className="relative w-full max-w-[min(96vw,500px)] aspect-square mx-auto p-1.5 sm:p-3 rounded-2xl sm:rounded-3xl glass-panel shadow-[0_12px_45px_rgba(0,0,0,0.6)] border border-white/20 select-none touch-manipulation"
     >
-      {/* 15x15 Board Grid - Rotated so user's yard is ALWAYS at Bottom-Left */}
+      {/* 15x15 Board Grid (gap-0 ensures zero mathematical drift between grid cells & absolute tokens) */}
       <div
-        className="relative w-full h-full grid grid-cols-15 grid-rows-15 gap-[1px] sm:gap-[2px] bg-slate-950/80 p-1 rounded-xl sm:rounded-2xl border border-white/10 overflow-hidden"
+        className="relative w-full h-full grid grid-cols-15 grid-rows-15 gap-0 bg-slate-950/80 p-1 rounded-xl sm:rounded-2xl border border-white/10 overflow-hidden"
         style={{
           transform: `rotate(${boardRotation}deg)`,
           transition: 'transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)'
@@ -564,9 +593,10 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
             const key = `${item.playerColor}-${item.token.id}`;
             const colorCfg = COLOR_STYLES[item.playerColor];
             const isSelectedMovable = item.isMovable;
+            const isBase = item.token.progress === -1;
 
             const cellKey = `${item.coord.r}-${item.coord.c}`;
-            const cellGroup = cellTokensMap.get(cellKey) || [item];
+            const cellGroup = isBase ? [item] : (cellTokensMap.get(cellKey) || [item]);
             const clusterCount = cellGroup.length;
             const clusterIndex = cellGroup.indexOf(item);
 
@@ -574,36 +604,38 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
             let clusterY = 0;
             let clusterScale = 1;
 
-            if (clusterCount === 2) {
-              clusterScale = 0.82;
-              clusterX = clusterIndex === 0 ? -6 : 6;
-              clusterY = 0;
-            } else if (clusterCount === 3) {
-              clusterScale = 0.72;
-              if (clusterIndex === 0) {
-                clusterX = -6;
-                clusterY = -5;
-              } else if (clusterIndex === 1) {
-                clusterX = 6;
-                clusterY = -5;
-              } else {
-                clusterX = 0;
-                clusterY = 5;
-              }
-            } else if (clusterCount >= 4) {
-              clusterScale = 0.65;
-              if (clusterIndex === 0) {
-                clusterX = -5.5;
-                clusterY = -5.5;
-              } else if (clusterIndex === 1) {
-                clusterX = 5.5;
-                clusterY = -5.5;
-              } else if (clusterIndex === 2) {
-                clusterX = -5.5;
-                clusterY = 5.5;
-              } else {
-                clusterX = 5.5;
-                clusterY = 5.5;
+            if (!isBase) {
+              if (clusterCount === 2) {
+                clusterScale = 0.82;
+                clusterX = clusterIndex === 0 ? -6 : 6;
+                clusterY = 0;
+              } else if (clusterCount === 3) {
+                clusterScale = 0.72;
+                if (clusterIndex === 0) {
+                  clusterX = -6;
+                  clusterY = -5;
+                } else if (clusterIndex === 1) {
+                  clusterX = 6;
+                  clusterY = -5;
+                } else {
+                  clusterX = 0;
+                  clusterY = 5;
+                }
+              } else if (clusterCount >= 4) {
+                clusterScale = 0.65;
+                if (clusterIndex === 0) {
+                  clusterX = -5.5;
+                  clusterY = -5.5;
+                } else if (clusterIndex === 1) {
+                  clusterX = 5.5;
+                  clusterY = -5.5;
+                } else if (clusterIndex === 2) {
+                  clusterX = -5.5;
+                  clusterY = 5.5;
+                } else {
+                  clusterX = 5.5;
+                  clusterY = 5.5;
+                }
               }
             }
 
