@@ -54,7 +54,7 @@ export function createInitialGameState(playerConfigs = [], options = {}) {
     name: p.name || `Player ${idx + 1}`,
     avatar: p.avatar || '😎',
     color: p.color || COLORS[idx],
-    team: mode === 'power-couple-2v2' ? (idx % 2) : idx,
+    team: mode === 'power-couple-2v2' ? (p.team !== undefined ? p.team : (idx % 2)) : idx,
     tokens: [
       { id: 0, progress: -1, stepHistory: [] },
       { id: 1, progress: -1, stepHistory: [] },

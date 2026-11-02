@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Send, MessageCircle, X } from 'lucide-react';
 import { ChatMessage } from '../types/game';
 import { socketService } from '../services/socket';
+import { AvatarImg } from './AvatarImg';
 
 interface TextChatDrawerProps {
   roomId: string;
@@ -145,7 +146,9 @@ export const TextChatDrawer: React.FC<TextChatDrawerProps> = ({
                   className={`flex items-end gap-2 ${isMe ? 'justify-end' : 'justify-start'}`}
                 >
                   {!isMe && (
-                    <span className="text-xl shrink-0">{msg.senderAvatar || '🥰'}</span>
+                    <div className="w-7 h-7 rounded-lg overflow-hidden shrink-0 flex items-center justify-center bg-white/10 border border-white/15">
+                      <AvatarImg avatar={msg.senderAvatar} />
+                    </div>
                   )}
                   <div
                     className={`max-w-[78%] px-3.5 py-2 rounded-2xl text-xs sm:text-sm shadow-md ${
@@ -162,7 +165,9 @@ export const TextChatDrawer: React.FC<TextChatDrawerProps> = ({
                     <p className="break-words leading-relaxed">{msg.text}</p>
                   </div>
                   {isMe && (
-                    <span className="text-xl shrink-0">{currentUserAvatar}</span>
+                    <div className="w-7 h-7 rounded-lg overflow-hidden shrink-0 flex items-center justify-center bg-white/10 border border-white/15">
+                      <AvatarImg avatar={currentUserAvatar} />
+                    </div>
                   )}
                 </div>
               );

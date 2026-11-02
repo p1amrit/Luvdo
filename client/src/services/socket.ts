@@ -101,6 +101,14 @@ class SocketService {
     this.getSocket().emit('update-player-profile', { roomId, playerId, profile });
   }
 
+  public updatePlayerTeam(roomId: string, playerId: string, team: number) {
+    this.getSocket().emit('update-player-team', { roomId, playerId, team });
+  }
+
+  public swapPlayerTeams(roomId: string, player1Id: string, player2Id: string) {
+    this.getSocket().emit('swap-player-teams', { roomId, player1Id, player2Id });
+  }
+
   public startGame(roomId: string) {
     this.getSocket().emit('start-game', { roomId });
   }

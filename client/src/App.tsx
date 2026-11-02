@@ -14,15 +14,16 @@ import { VictoryModal } from './components/VictoryModal';
 import { voiceChatService } from './services/webrtcVoice';
 import { App as CapacitorApp } from '@capacitor/app';
 
-const ALL_MASCOTS = ['😎', '🍕', '🎮', '🚀', '🐱', '👑', '🥰', '💖', '🐰', '🐻', '🦊', '🥑', '🎧', '☕', '✨', '👻'];
-const ALL_NICKNAMES = ['PixelKing', 'BobaQueen', 'ChaosGremlin', 'Honeybee', 'Capybara', 'Speedy', 'Noodle', 'Ghostie', 'Cupid', 'Sweetpea', 'Captain', 'VibeMaster', 'StarGazer', 'LuckyDice'];
+import { COOL_AVATARS, DEFAULT_AVATAR } from './utils/avatars';
+import { AvatarImg } from './components/AvatarImg';
 
 export const App: React.FC = () => {
   // Navigation & User State
   const [inRoom, setInRoom] = useState(false);
   const [roomId, setRoomId] = useState('');
-  const [guestName, setGuestName] = useState(() => localStorage.getItem('luvdo_name') || 'PixelKing');
-  const [guestAvatar, setGuestAvatar] = useState(() => localStorage.getItem('luvdo_avatar') || '😎');
+  const [guestName, setGuestName] = useState(() => localStorage.getItem('luvdo_name') || '');
+  const [guestAvatar, setGuestAvatar] = useState(() => localStorage.getItem('luvdo_avatar') || DEFAULT_AVATAR);
+  const [nameError, setNameError] = useState<string | null>(null);
   const [playerNotice, setPlayerNotice] = useState<{ type: 'join' | 'leave'; name: string; avatar: string } | null>(null);
   const [myPlayerId] = useState(() => {
     let id = sessionStorage.getItem('luvdo_player_id');
@@ -123,14 +124,11 @@ export const App: React.FC = () => {
 
   // Save guest preferences to localStorage
   useEffect(() => {
-    localStorage.setItem('luvdo_name', guestName);
+    if (guestName.trim()) {
+      localStorage.setItem('luvdo_name', guestName.trim());
+    }
     localStorage.setItem('luvdo_avatar', guestAvatar);
   }, [guestName, guestAvatar]);
-
-  const handleRandomNickname = () => {
-    const rand = ALL_NICKNAMES[Math.floor(Math.random() * ALL_NICKNAMES.length)];
-    setGuestName(rand);
-  };
 
   // Browser History & Android Hardware Back Button Handling (Prevents site/app from closing accidentally)
   useEffect(() => {
@@ -332,6 +330,12 @@ export const App: React.FC = () => {
   // Create Room
   const [isCreatingRoom, setIsCreatingRoom] = useState(false);
   const handleCreateRoom = async () => {
+    if (!guestName.trim()) {
+      setNameError('Please enter your player nickname first!');
+      return;
+    }
+    setNameError(null);
+
     if (isCreatingRoom) return;
     setIsCreatingRoom(true);
     try {
@@ -340,7 +344,7 @@ export const App: React.FC = () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          hostName: guestName,
+          hostName: guestName.trim(),
           hostAvatar: guestAvatar,
           theme: currentTheme,
           vibe: 'friends',
@@ -360,7 +364,7 @@ export const App: React.FC = () => {
         setInRoom(true);
         socketService.joinRoom(data.roomId, {
           id: myPlayerId,
-          name: guestName,
+          name: guestName.trim(),
           avatar: guestAvatar
         });
       }
@@ -374,6 +378,12 @@ export const App: React.FC = () => {
 
   // Join Room
   const handleJoinRoom = () => {
+    if (!guestName.trim()) {
+      setNameError('Please enter your player nickname first!');
+      return;
+    }
+    setNameError(null);
+
     const code = inputRoomCode.trim();
     if (!code) return;
 
@@ -383,7 +393,7 @@ export const App: React.FC = () => {
 
     socketService.joinRoom(code, {
       id: myPlayerId,
-      name: guestName,
+      name: guestName.trim(),
       avatar: guestAvatar
     });
   };
@@ -544,54 +554,66 @@ export const App: React.FC = () => {
               {/* Avatar + Nickname Big Preview & Input */}
               <div className="flex flex-col sm:flex-row items-center gap-4">
                 <div className="flex flex-col items-center gap-1">
-                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-pink-500/30 to-purple-500/30 border-2 border-pink-400 flex items-center justify-center text-3xl sm:text-4xl shadow-lg ring-4 ring-pink-400/20">
-                    {guestAvatar}
+                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-pink-500/30 to-purple-500/30 border-2 border-pink-400 p-1 flex items-center justify-center shadow-lg ring-4 ring-pink-400/20 overflow-hidden">
+                    <AvatarImg avatar={guestAvatar} className="w-full h-full object-cover rounded-xl" />
                   </div>
-                  <span className="text-[10px] text-pink-200/80 font-bold">Your Mascot</span>
+                  <span className="text-[10px] text-pink-200/80 font-bold">Your Avatar</span>
                 </div>
 
                 <div className="flex-1 w-full space-y-1.5">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-white/80">Your Player Nickname:</span>
-                    <button
-                      type="button"
-                      onClick={handleRandomNickname}
-                      className="text-xs text-pink-300 hover:text-pink-200 underline font-semibold flex items-center gap-1 transition-colors"
-                    >
-                      <Sparkles size={12} />
-                      <span>Random Name</span>
-                    </button>
+                    <span className="text-xs font-bold text-white/90">Your Player Name: <span className="text-pink-400">*</span></span>
+                    <span className="text-[10px] text-pink-200/60 font-semibold">Required to join match</span>
                   </div>
 
                   <input
                     type="text"
                     value={guestName}
-                    onChange={(e) => setGuestName(e.target.value)}
+                    onChange={(e) => {
+                      setGuestName(e.target.value);
+                      if (nameError) setNameError(null);
+                    }}
                     maxLength={20}
-                    placeholder="Enter your nickname..."
-                    className="w-full px-4 py-3 rounded-xl bg-slate-950/70 border border-white/25 text-white font-bold text-sm focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent placeholder-white/30 shadow-inner"
+                    placeholder="Enter your name (e.g. Amrit)..."
+                    className={`w-full px-4 py-3 rounded-xl bg-slate-950/70 border text-white font-bold text-sm focus:outline-none transition-all placeholder-white/30 shadow-inner ${
+                      nameError
+                        ? 'border-rose-500 ring-2 ring-rose-500/40'
+                        : 'border-white/25 focus:ring-2 focus:ring-pink-500 focus:border-transparent'
+                    }`}
                   />
+                  {nameError && (
+                    <p className="text-xs text-rose-400 font-bold flex items-center gap-1 animate-fade-in">
+                      ⚠️ {nameError}
+                    </p>
+                  )}
                 </div>
               </div>
 
-              {/* Mascot Palette Selection */}
+              {/* Cool Avatars Selection */}
               <div className="space-y-2 pt-1">
-                <span className="text-xs font-bold text-white/80">Pick Your Mascot Avatar:</span>
-                <div className="grid grid-cols-8 gap-2">
-                  {ALL_MASCOTS.map((av) => (
-                    <button
-                      key={av}
-                      type="button"
-                      onClick={() => setGuestAvatar(av)}
-                      className={`h-10 rounded-xl flex items-center justify-center text-xl transition-all ${
-                        guestAvatar === av
-                          ? 'bg-gradient-to-br from-pink-500 to-purple-600 border-2 border-white scale-110 shadow-lg ring-2 ring-pink-400'
-                          : 'bg-white/10 hover:bg-white/20 border border-white/10'
-                      }`}
-                    >
-                      {av}
-                    </button>
-                  ))}
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-white/80">Choose Your Avatar:</span>
+                  <span className="text-[10px] text-pink-300 font-semibold">16 Cool Characters</span>
+                </div>
+                <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
+                  {COOL_AVATARS.map((av) => {
+                    const isSelected = guestAvatar === av.url;
+                    return (
+                      <button
+                        key={av.id}
+                        type="button"
+                        onClick={() => setGuestAvatar(av.url)}
+                        className={`aspect-square p-1 rounded-xl flex items-center justify-center transition-all ${
+                          isSelected
+                            ? 'bg-gradient-to-br from-pink-500 to-purple-600 border-2 border-white scale-105 shadow-xl ring-2 ring-pink-400'
+                            : 'bg-white/10 hover:bg-white/20 border border-white/10 hover:scale-102'
+                        }`}
+                        title={av.name}
+                      >
+                        <AvatarImg avatar={av.url} alt={av.name} className="w-full h-full object-cover rounded-lg" />
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -608,7 +630,14 @@ export const App: React.FC = () => {
               </button>
 
               <button
-                onClick={() => setJoinModalOpen(true)}
+                onClick={() => {
+                  if (!guestName.trim()) {
+                    setNameError('Please enter your name first!');
+                    return;
+                  }
+                  setNameError(null);
+                  setJoinModalOpen(true);
+                }}
                 className="flex-1 py-4 px-6 rounded-2xl glass-panel hover:bg-white/15 border border-white/20 text-white font-bold text-sm transition-transform active:scale-95 flex items-center justify-center gap-2"
               >
                 <Users size={18} />
@@ -770,7 +799,9 @@ export const App: React.FC = () => {
       {/* Real-Time Player Entry / Exit Popup Notification */}
       {playerNotice && (
         <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-4 py-2.5 rounded-2xl glass-panel bg-slate-950/95 border-2 border-pink-400/50 shadow-[0_12px_45px_rgba(0,0,0,0.85)] animate-fade-in pointer-events-none backdrop-blur-xl">
-          <span className="text-3xl">{playerNotice.avatar}</span>
+          <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0 flex items-center justify-center bg-white/10 border border-white/20">
+            <AvatarImg avatar={playerNotice.avatar} />
+          </div>
           <div>
             <p className="text-xs sm:text-sm font-black text-white">
               {playerNotice.name} {playerNotice.type === 'join' ? 'entered the room!' : 'left the room'}

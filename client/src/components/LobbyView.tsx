@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { Copy, Check, Users, Shield, Mic } from 'lucide-react';
+import { Copy, Check, Users, Shield, Mic, ArrowLeftRight, GripVertical } from 'lucide-react';
 import { Room, Player, AestheticTheme, GameMode, PlayerColor } from '../types/game';
 import { socketService } from '../services/socket';
 import { COLOR_STYLES } from '../utils/boardCoordinates';
 import { VoiceChatBar } from './VoiceChatBar';
+import { AvatarImg } from './AvatarImg';
 
 interface LobbyViewProps {
   room: Room;
@@ -13,6 +14,7 @@ interface LobbyViewProps {
 
 export const LobbyView: React.FC<LobbyViewProps> = ({ room, myPlayer, onThemeChange }) => {
   const [copied, setCopied] = useState(false);
+  const [dragOverTeam, setDragOverTeam] = useState<number | null>(null);
   const isHost = myPlayer.isHost;
 
   const handleCopyLink = () => {
@@ -49,6 +51,34 @@ export const LobbyView: React.FC<LobbyViewProps> = ({ room, myPlayer, onThemeCha
     onThemeChange(theme);
     socketService.updateRoomSettings(room.id, { theme });
   };
+
+  const handleSwitchTeam = (playerId: string, currentTeam: number) => {
+    const targetTeam = currentTeam === 0 ? 1 : 0;
+    socketService.updatePlayerTeam(room.id, playerId, targetTeam);
+  };
+
+  const handleDropOnTeam = (e: React.DragEvent, targetTeam: number) => {
+    e.preventDefault();
+    setDragOverTeam(null);
+    const playerId = e.dataTransfer.getData('playerId');
+    if (playerId) {
+      socketService.updatePlayerTeam(room.id, playerId, targetTeam);
+    }
+  };
+
+  const handleDropOnPlayer = (e: React.DragEvent, targetPlayerId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOverTeam(null);
+    const draggedPlayerId = e.dataTransfer.getData('playerId');
+    if (draggedPlayerId && draggedPlayerId !== targetPlayerId) {
+      socketService.swapPlayerTeams(room.id, draggedPlayerId, targetPlayerId);
+    }
+  };
+
+  const is2v2Mode = room.mode === 'power-couple-2v2';
+  const team1Players = room.players.filter(p => (p.team ?? 0) === 0);
+  const team2Players = room.players.filter(p => (p.team ?? 0) === 1);
 
   return (
     <div className="w-full max-w-2xl mx-auto p-4 sm:p-6 space-y-6">
@@ -100,13 +130,13 @@ export const LobbyView: React.FC<LobbyViewProps> = ({ room, myPlayer, onThemeCha
         </div>
       </div>
 
-      {/* High-Visibility Players in Room Grid */}
+      {/* Players Section: 2v2 Interactive Team Manager or Standard 4P Grid */}
       <div className="p-5 sm:p-6 rounded-3xl glass-panel border border-white/20 space-y-4 shadow-2xl">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Users size={18} className="text-pink-400" />
             <h3 className="text-base sm:text-lg font-black text-white">
-              Players in Room ({room.players.length}/4)
+              {is2v2Mode ? '2v2 Squads Setup' : `Players in Room (${room.players.length}/4)`}
             </h3>
           </div>
 
@@ -120,104 +150,316 @@ export const LobbyView: React.FC<LobbyViewProps> = ({ room, myPlayer, onThemeCha
           )}
         </div>
 
-        {/* 4-Slot Dedicated Player Cards Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-          {Array.from({ length: 4 }).map((_, index) => {
-            const player = room.players[index];
-            if (player) {
-              const colStyle = COLOR_STYLES[player.color];
-              const isMe = player.id === myPlayer.id;
+        {/* 2v2 Mode: Two Interactive Drag & Drop Team Zones */}
+        {is2v2Mode ? (
+          <div className="space-y-3">
+            {isHost && (
+              <p className="text-[11px] text-pink-200/80 font-bold bg-pink-500/10 px-3 py-1.5 rounded-xl border border-pink-400/30 flex items-center gap-1.5">
+                <span>👑 Host Permission:</span>
+                <span>Drag player cards or tap <ArrowLeftRight size={12} className="inline mx-0.5 text-pink-300" /> to switch & balance teams</span>
+              </p>
+            )}
 
-              return (
-                <div
-                  key={player.id}
-                  className={`relative p-3.5 sm:p-4 rounded-2xl border-2 transition-all shadow-lg flex items-center justify-between ${
-                    isMe
-                      ? 'bg-gradient-to-br from-white/20 via-white/10 to-transparent border-white/50 ring-2 ring-pink-400/60'
-                      : `bg-slate-950/80 ${colStyle.border}`
-                  }`}
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="relative">
-                      <div className="w-12 h-12 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-2xl sm:text-3xl shadow-inner">
-                        {player.avatar}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Team 1 Container */}
+              <div
+                onDragOver={(e) => {
+                  if (isHost) {
+                    e.preventDefault();
+                    setDragOverTeam(0);
+                  }
+                }}
+                onDragLeave={() => setDragOverTeam(null)}
+                onDrop={(e) => isHost && handleDropOnTeam(e, 0)}
+                className={`p-4 rounded-2xl border-2 transition-all min-h-[160px] flex flex-col justify-between ${
+                  dragOverTeam === 0
+                    ? 'border-pink-400 bg-pink-950/60 ring-2 ring-pink-400/50 scale-[1.01]'
+                    : 'border-rose-500/30 bg-rose-950/20'
+                }`}
+              >
+                <div className="flex items-center justify-between pb-2 border-b border-rose-500/20 mb-2">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-base">💖</span>
+                    <span className="text-xs sm:text-sm font-black text-rose-300 uppercase tracking-wide">
+                      Team 1 ({team1Players.length}/2)
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-rose-300/70 font-semibold">Rose & Peach</span>
+                </div>
+
+                <div className="space-y-2 flex-1">
+                  {team1Players.map((player) => {
+                    const colStyle = COLOR_STYLES[player.color];
+                    const isMe = player.id === myPlayer.id;
+
+                    return (
+                      <div
+                        key={player.id}
+                        draggable={isHost}
+                        onDragStart={(e) => {
+                          e.dataTransfer.setData('playerId', player.id);
+                        }}
+                        onDrop={(e) => isHost && handleDropOnPlayer(e, player.id)}
+                        className={`p-2.5 rounded-xl border transition-all flex items-center justify-between shadow-md ${
+                          isMe
+                            ? 'bg-white/20 border-white/60 ring-1 ring-pink-400'
+                            : `bg-slate-950/80 ${colStyle.border}`
+                        } ${isHost ? 'cursor-grab active:cursor-grabbing hover:border-pink-400' : ''}`}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          {isHost && (
+                            <GripVertical size={14} className="text-white/40 shrink-0" />
+                          )}
+                          <div className="w-10 h-10 rounded-xl overflow-hidden bg-white/10 border border-white/20 shrink-0 flex items-center justify-center">
+                            <AvatarImg avatar={player.avatar} alt={player.name} />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1">
+                              <p className="text-xs font-black text-white truncate max-w-[100px]">
+                                {player.name}
+                              </p>
+                              {isMe && <span className="text-[9px] bg-pink-500/40 text-pink-200 px-1 rounded font-bold">You</span>}
+                              {player.isHost && <span className="text-[9px] text-amber-300">👑</span>}
+                            </div>
+                            <span className={`text-[10px] font-bold ${colStyle.textColor}`}>
+                              {colStyle.emoji} {colStyle.name}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Host Switch Team Button */}
+                        {isHost && (
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              onClick={() => handleSwitchTeam(player.id, 0)}
+                              className="px-2 py-1 rounded-lg bg-pink-500/20 hover:bg-pink-500/40 border border-pink-400/40 text-pink-200 text-[10px] font-bold flex items-center gap-1 transition-all active:scale-95"
+                              title="Move to Team 2"
+                            >
+                              <ArrowLeftRight size={10} />
+                              <span>To T2</span>
+                            </button>
+                            {player.isBot && (
+                              <button
+                                onClick={() => socketService.removeBot(room.id, player.id)}
+                                className="p-1 rounded-lg bg-white/10 hover:bg-rose-500/30 text-white/50 hover:text-rose-200 text-xs font-bold"
+                              >
+                                ✕
+                              </button>
+                            )}
+                          </div>
+                        )}
                       </div>
-                      <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full bg-emerald-400 border-2 border-slate-900 shadow-sm" />
+                    );
+                  })}
+
+                  {team1Players.length < 2 && (
+                    <div className="p-3 rounded-xl border border-dashed border-rose-400/20 text-center text-[11px] text-rose-300/40 flex items-center justify-center min-h-[46px]">
+                      {isHost ? 'Drop player here or tap "To T1"' : 'Waiting for teammate...'}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Team 2 Container */}
+              <div
+                onDragOver={(e) => {
+                  if (isHost) {
+                    e.preventDefault();
+                    setDragOverTeam(1);
+                  }
+                }}
+                onDragLeave={() => setDragOverTeam(null)}
+                onDrop={(e) => isHost && handleDropOnTeam(e, 1)}
+                className={`p-4 rounded-2xl border-2 transition-all min-h-[160px] flex flex-col justify-between ${
+                  dragOverTeam === 1
+                    ? 'border-teal-400 bg-teal-950/60 ring-2 ring-teal-400/50 scale-[1.01]'
+                    : 'border-teal-500/30 bg-teal-950/20'
+                }`}
+              >
+                <div className="flex items-center justify-between pb-2 border-b border-teal-500/20 mb-2">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-base">🌿</span>
+                    <span className="text-xs sm:text-sm font-black text-teal-300 uppercase tracking-wide">
+                      Team 2 ({team2Players.length}/2)
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-teal-300/70 font-semibold">Mint & Lavender</span>
+                </div>
+
+                <div className="space-y-2 flex-1">
+                  {team2Players.map((player) => {
+                    const colStyle = COLOR_STYLES[player.color];
+                    const isMe = player.id === myPlayer.id;
+
+                    return (
+                      <div
+                        key={player.id}
+                        draggable={isHost}
+                        onDragStart={(e) => {
+                          e.dataTransfer.setData('playerId', player.id);
+                        }}
+                        onDrop={(e) => isHost && handleDropOnPlayer(e, player.id)}
+                        className={`p-2.5 rounded-xl border transition-all flex items-center justify-between shadow-md ${
+                          isMe
+                            ? 'bg-white/20 border-white/60 ring-1 ring-teal-400'
+                            : `bg-slate-950/80 ${colStyle.border}`
+                        } ${isHost ? 'cursor-grab active:cursor-grabbing hover:border-teal-400' : ''}`}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          {isHost && (
+                            <GripVertical size={14} className="text-white/40 shrink-0" />
+                          )}
+                          <div className="w-10 h-10 rounded-xl overflow-hidden bg-white/10 border border-white/20 shrink-0 flex items-center justify-center">
+                            <AvatarImg avatar={player.avatar} alt={player.name} />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1">
+                              <p className="text-xs font-black text-white truncate max-w-[100px]">
+                                {player.name}
+                              </p>
+                              {isMe && <span className="text-[9px] bg-teal-500/40 text-teal-200 px-1 rounded font-bold">You</span>}
+                              {player.isHost && <span className="text-[9px] text-amber-300">👑</span>}
+                            </div>
+                            <span className={`text-[10px] font-bold ${colStyle.textColor}`}>
+                              {colStyle.emoji} {colStyle.name}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Host Switch Team Button */}
+                        {isHost && (
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              onClick={() => handleSwitchTeam(player.id, 1)}
+                              className="px-2 py-1 rounded-lg bg-teal-500/20 hover:bg-teal-500/40 border border-teal-400/40 text-teal-200 text-[10px] font-bold flex items-center gap-1 transition-all active:scale-95"
+                              title="Move to Team 1"
+                            >
+                              <ArrowLeftRight size={10} />
+                              <span>To T1</span>
+                            </button>
+                            {player.isBot && (
+                              <button
+                                onClick={() => socketService.removeBot(room.id, player.id)}
+                                className="p-1 rounded-lg bg-white/10 hover:bg-rose-500/30 text-white/50 hover:text-rose-200 text-xs font-bold"
+                              >
+                                ✕
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+
+                  {team2Players.length < 2 && (
+                    <div className="p-3 rounded-xl border border-dashed border-teal-400/20 text-center text-[11px] text-teal-300/40 flex items-center justify-center min-h-[46px]">
+                      {isHost ? 'Drop player here or tap "To T2"' : 'Waiting for teammate...'}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* Standard 4-Player Free-For-All Cards Grid */
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+            {Array.from({ length: 4 }).map((_, index) => {
+              const player = room.players[index];
+              if (player) {
+                const colStyle = COLOR_STYLES[player.color];
+                const isMe = player.id === myPlayer.id;
+
+                return (
+                  <div
+                    key={player.id}
+                    className={`relative p-3.5 sm:p-4 rounded-2xl border-2 transition-all shadow-lg flex items-center justify-between ${
+                      isMe
+                        ? 'bg-gradient-to-br from-white/20 via-white/10 to-transparent border-white/50 ring-2 ring-pink-400/60'
+                        : `bg-slate-950/80 ${colStyle.border}`
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="relative">
+                        <div className="w-12 h-12 rounded-2xl bg-white/10 border border-white/20 overflow-hidden flex items-center justify-center shadow-inner">
+                          <AvatarImg avatar={player.avatar} alt={player.name} />
+                        </div>
+                        <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full bg-emerald-400 border-2 border-slate-900 shadow-sm" />
+                      </div>
+
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-sm sm:text-base font-black text-white truncate max-w-[120px] sm:max-w-[140px]">
+                            {player.name}
+                          </p>
+                          {isMe && (
+                            <span className="text-[10px] bg-pink-500/30 text-pink-200 px-1.5 py-0.2 rounded-full font-bold border border-pink-400/40">
+                              You
+                            </span>
+                          )}
+                          {player.isHost && (
+                            <span className="text-[10px] bg-amber-500/30 text-amber-200 px-1.5 py-0.2 rounded-full font-bold border border-amber-400/40">
+                              👑 Host
+                            </span>
+                          )}
+                          {player.isBot && (
+                            <span className="text-[10px] bg-indigo-500/30 text-indigo-200 px-1.5 py-0.2 rounded-full font-bold border border-indigo-400/40">
+                              🤖 Bot
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span className="text-xs">{colStyle.emoji}</span>
+                          <span className={`text-xs font-bold ${colStyle.textColor}`}>
+                            {colStyle.name}
+                          </span>
+                        </div>
+                      </div>
                     </div>
 
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <p className="text-sm sm:text-base font-black text-white truncate max-w-[120px] sm:max-w-[140px]">
-                          {player.name}
-                        </p>
-                        {isMe && (
-                          <span className="text-[10px] bg-pink-500/30 text-pink-200 px-1.5 py-0.2 rounded-full font-bold border border-pink-400/40">
-                            You
-                          </span>
-                        )}
-                        {player.isHost && (
-                          <span className="text-[10px] bg-amber-500/30 text-amber-200 px-1.5 py-0.2 rounded-full font-bold border border-amber-400/40">
-                            👑 Host
-                          </span>
-                        )}
-                        {player.isBot && (
-                          <span className="text-[10px] bg-indigo-500/30 text-indigo-200 px-1.5 py-0.2 rounded-full font-bold border border-indigo-400/40">
-                            🤖 Bot
-                          </span>
-                        )}
-                      </div>
+                    {/* Actions: Remove bot if host */}
+                    {isHost && player.isBot && (
+                      <button
+                        onClick={() => socketService.removeBot(room.id, player.id)}
+                        className="p-1.5 rounded-xl bg-white/10 hover:bg-rose-500/30 hover:border-rose-400 text-white/50 hover:text-rose-200 border border-white/10 transition-colors text-xs font-bold"
+                        title="Remove AI Bot"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                );
+              }
 
-                      <div className="flex items-center gap-1.5 mt-0.5">
-                        <span className="text-xs">{colStyle.emoji}</span>
-                        <span className={`text-xs font-bold ${colStyle.textColor}`}>
-                          {colStyle.name}
-                        </span>
-                      </div>
+              // Empty Slot Card
+              return (
+                <div
+                  key={`empty-slot-${index}`}
+                  className="p-3.5 sm:p-4 rounded-2xl border-2 border-dashed border-white/15 bg-white/[0.02] flex items-center justify-between min-h-[76px]"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-2xl border border-white/10 bg-white/5 flex items-center justify-center text-white/30 text-sm font-bold">
+                      #{index + 1}
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-white/40">Slot #{index + 1}</p>
+                      <p className="text-[11px] text-white/30">Waiting for player...</p>
                     </div>
                   </div>
 
-                  {/* Actions: Remove bot if host */}
-                  {isHost && player.isBot && (
+                  {isHost && (
                     <button
-                      onClick={() => socketService.removeBot(room.id, player.id)}
-                      className="p-1.5 rounded-xl bg-white/10 hover:bg-rose-500/30 hover:border-rose-400 text-white/50 hover:text-rose-200 border border-white/10 transition-colors text-xs font-bold"
-                      title="Remove AI Bot"
+                      onClick={() => socketService.addBot(room.id)}
+                      className="px-2.5 py-1 rounded-xl bg-white/10 hover:bg-purple-500/30 border border-white/15 text-white/70 hover:text-purple-200 text-[11px] font-bold transition-all active:scale-95"
                     >
-                      ✕
+                      + Add Bot
                     </button>
                   )}
                 </div>
               );
-            }
-
-            // Empty Slot Card
-            return (
-              <div
-                key={`empty-slot-${index}`}
-                className="p-3.5 sm:p-4 rounded-2xl border-2 border-dashed border-white/15 bg-white/[0.02] flex items-center justify-between min-h-[76px]"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-2xl border border-white/10 bg-white/5 flex items-center justify-center text-white/30 text-sm font-bold">
-                    #{index + 1}
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold text-white/40">Slot #{index + 1}</p>
-                    <p className="text-[11px] text-white/30">Waiting for player...</p>
-                  </div>
-                </div>
-
-                {isHost && (
-                  <button
-                    onClick={() => socketService.addBot(room.id)}
-                    className="px-2.5 py-1 rounded-xl bg-white/10 hover:bg-purple-500/30 border border-white/15 text-white/70 hover:text-purple-200 text-[11px] font-bold transition-all active:scale-95"
-                  >
-                    + Add Bot
-                  </button>
-                )}
-              </div>
-            );
-          })}
-        </div>
+            })}
+          </div>
+        )}
       </div>
 
       {/* Choose Your Board Color */}

@@ -309,8 +309,9 @@ io.on('connection', (socket) => {
         id: player.id,
         socketId: socket.id,
         name: player.name || `Partner ${room.players.length + 1}`,
-        avatar: player.avatar || '🥰',
+        avatar: player.avatar || 'https://api.dicebear.com/7.x/adventurer/svg?seed=Shadow',
         color: availableColor,
+        team: room.players.length % 2,
         isHost: room.players.length === 0,
         isReady: false,
         isOnline: true
@@ -363,7 +364,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Change player color or avatar
+  // Change player color, avatar, or team
   socket.on('update-player-profile', ({ roomId, playerId, profile }) => {
     const room = rooms.get(roomId);
     if (!room) return;
@@ -375,6 +376,43 @@ io.on('connection', (socket) => {
         player.color = profile.color;
       }
       io.to(roomId).emit('room-updated', { room });
+    }
+  });
+
+  // Host updates player team in 2v2 mode
+  socket.on('update-player-team', ({ roomId, playerId, team }) => {
+    const room = rooms.get(roomId);
+    if (!room) return;
+    const requester = room.players.find(p => p.id === socket.data.playerId);
+    if (room.hostId !== socket.data.playerId && !requester?.isHost) {
+      return;
+    }
+
+    const player = room.players.find(p => p.id === playerId);
+    if (player && (team === 0 || team === 1)) {
+      player.team = team;
+      io.to(roomId).emit('room-updated', { room });
+      console.log(`[Room ${roomId}] Host assigned ${player.name} to Team ${team + 1}`);
+    }
+  });
+
+  // Host swaps two players between teams in 2v2 mode
+  socket.on('swap-player-teams', ({ roomId, player1Id, player2Id }) => {
+    const room = rooms.get(roomId);
+    if (!room) return;
+    const requester = room.players.find(p => p.id === socket.data.playerId);
+    if (room.hostId !== socket.data.playerId && !requester?.isHost) {
+      return;
+    }
+
+    const p1 = room.players.find(p => p.id === player1Id);
+    const p2 = room.players.find(p => p.id === player2Id);
+    if (p1 && p2) {
+      const tempTeam = p1.team !== undefined ? p1.team : 0;
+      p1.team = p2.team !== undefined ? p2.team : 1;
+      p2.team = tempTeam;
+      io.to(roomId).emit('room-updated', { room });
+      console.log(`[Room ${roomId}] Host swapped teams between ${p1.name} and ${p2.name}`);
     }
   });
 
@@ -420,15 +458,21 @@ io.on('connection', (socket) => {
     const usedColors = room.players.map(p => p.color);
     const availableColor = COLORS.find(c => !usedColors.includes(c)) || COLORS[room.players.length % COLORS.length];
     const botCount = room.players.filter(p => p.isBot).length + 1;
-    const botNames = ['CupidBot 🤖', 'LudoAI ⚡', 'PixelBuddy 👾', 'StarBot ⭐'];
-    const botName = botNames[(botCount - 1) % botNames.length];
+    const botConfigs = [
+      { name: 'CupidBot 🤖', avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=CupidBot' },
+      { name: 'LudoAI ⚡', avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=LudoAI' },
+      { name: 'PixelBuddy 👾', avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=PixelBuddy' },
+      { name: 'StarBot ⭐', avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=StarBot' }
+    ];
+    const botCfg = botConfigs[(botCount - 1) % botConfigs.length];
 
     const botPlayer = {
       id: `bot-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`,
       socketId: 'bot-internal',
-      name: botName,
-      avatar: '🤖',
+      name: botCfg.name,
+      avatar: botCfg.avatar,
       color: availableColor,
+      team: room.players.length % 2,
       isHost: false,
       isReady: true,
       isOnline: true,

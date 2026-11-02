@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Player, PlayerColor } from '../types/game';
 import { BorderTimer } from './BorderTimer';
+import { AvatarImg } from './AvatarImg';
 import { sounds } from '../services/soundEffects';
 
 interface PlayerPodProps {
@@ -249,9 +250,9 @@ export const PlayerPod: React.FC<PlayerPodProps> = ({
           <BorderTimer percent={turnTimePercent} rx={14} strokeWidth={3} />
         )}
 
-        <span className="text-2xl sm:text-3xl select-none filter drop-shadow">
-          {player.avatar || '😎'}
-        </span>
+        <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl overflow-hidden flex items-center justify-center p-0.5">
+          <AvatarImg avatar={player.avatar} alt={player.name} />
+        </div>
       </div>
 
       {/* Player Name & Score */}
