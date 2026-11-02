@@ -611,7 +611,11 @@ export const App: React.FC = () => {
           <div className="w-full max-w-4xl mx-auto flex flex-col items-center gap-2 sm:gap-4 px-1 sm:px-4">
             {/* Last event banner */}
             {gameState.lastEvent && (
-              <div className="px-3 sm:px-4 py-1 rounded-full glass-panel border border-pink-400/30 text-[11px] sm:text-xs font-semibold text-pink-200 text-center shadow-lg animate-fade-in max-w-md truncate">
+              <div className={`px-3 sm:px-4 py-1 rounded-full glass-panel border text-[11px] sm:text-xs font-semibold text-center shadow-lg animate-fade-in max-w-md truncate ${
+                gameState.lastEvent.type === 'penalty'
+                  ? 'border-amber-400 bg-amber-950/90 text-amber-200 font-extrabold shadow-[0_0_15px_rgba(245,158,11,0.5)]'
+                  : 'border-pink-400/30 text-pink-200'
+              }`}>
                 {gameState.lastEvent.text}
               </div>
             )}

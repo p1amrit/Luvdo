@@ -23,6 +23,7 @@ export interface Player {
   isReady: boolean;
   isOnline: boolean;
   isBot?: boolean;
+  missedTurns?: number;
 }
 
 export interface DareCard {
