@@ -93,35 +93,35 @@ export const RUNWAY_COORDS: Record<PlayerColor, GridCoord[]> = {
   ]
 };
 
-// Base / Yard token slot coordinates for each corner (4 tokens each, spaced with proper 2-tile gap)
+// Base / Yard token slot coordinates for each corner (centered 2x2 grid inside each yard card, matching Ludo King)
 export const BASE_SLOTS_COORDS: Record<PlayerColor, GridCoord[]> = {
   // Top-Left corner (Rose)
   rose: [
-    { r: 2, c: 1 },
-    { r: 2, c: 4 },
-    { r: 4, c: 1 },
-    { r: 4, c: 4 }
+    { r: 2, c: 2 },
+    { r: 2, c: 3 },
+    { r: 3, c: 2 },
+    { r: 3, c: 3 }
   ],
   // Top-Right corner (Lavender)
   lavender: [
-    { r: 2, c: 10 },
-    { r: 2, c: 13 },
-    { r: 4, c: 10 },
-    { r: 4, c: 13 }
+    { r: 2, c: 11 },
+    { r: 2, c: 12 },
+    { r: 3, c: 11 },
+    { r: 3, c: 12 }
   ],
   // Bottom-Right corner (Peach)
   peach: [
-    { r: 11, c: 10 },
-    { r: 11, c: 13 },
-    { r: 13, c: 10 },
-    { r: 13, c: 13 }
+    { r: 11, c: 11 },
+    { r: 11, c: 12 },
+    { r: 12, c: 11 },
+    { r: 12, c: 12 }
   ],
   // Bottom-Left corner (Mint)
   mint: [
-    { r: 11, c: 1 },
-    { r: 11, c: 4 },
-    { r: 13, c: 1 },
-    { r: 13, c: 4 }
+    { r: 11, c: 2 },
+    { r: 11, c: 3 },
+    { r: 12, c: 2 },
+    { r: 12, c: 3 }
   ]
 };
 

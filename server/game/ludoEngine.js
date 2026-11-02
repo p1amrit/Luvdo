@@ -1,4 +1,4 @@
-export const COLORS = ['rose', 'lavender', 'peach', 'mint'];
+export const COLORS = ['mint', 'rose', 'lavender', 'peach'];
 
 export const COLOR_CONFIG = {
   rose: {

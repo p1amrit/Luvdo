@@ -449,10 +449,22 @@ export const App: React.FC = () => {
   const isMyTurn = currentTurnPlayer.id === myPlayerId;
   const canRoll = isMyTurn && gameState?.diceValue === null && !gameState?.winner;
 
-  const rosePlayer = gameState?.players.find((p) => p.color === 'rose');
-  const lavenderPlayer = gameState?.players.find((p) => p.color === 'lavender');
-  const peachPlayer = gameState?.players.find((p) => p.color === 'peach');
-  const mintPlayer = gameState?.players.find((p) => p.color === 'mint');
+  // Dynamic quadrant mapping so the local user is ALWAYS anchored at Bottom-Left (matching Ludo King)
+  const myColor: PlayerColor = (myPlayer?.color as PlayerColor) || 'mint';
+
+  const QUADRANT_MAPPING: Record<PlayerColor, { bl: PlayerColor; tl: PlayerColor; tr: PlayerColor; br: PlayerColor }> = {
+    mint:     { bl: 'mint',     tl: 'rose',     tr: 'lavender', br: 'peach' },
+    rose:     { bl: 'rose',     tl: 'lavender', tr: 'peach',    br: 'mint' },
+    lavender: { bl: 'lavender', tl: 'peach',    tr: 'mint',     br: 'rose' },
+    peach:    { bl: 'peach',    tl: 'mint',     tr: 'rose',     br: 'lavender' }
+  };
+
+  const quadrants = QUADRANT_MAPPING[myColor] || QUADRANT_MAPPING.mint;
+
+  const tlPlayer = gameState?.players.find((p) => p.color === quadrants.tl);
+  const trPlayer = gameState?.players.find((p) => p.color === quadrants.tr);
+  const blPlayer = gameState?.players.find((p) => p.color === quadrants.bl);
+  const brPlayer = gameState?.players.find((p) => p.color === quadrants.br);
 
   return (
     <AestheticBackground theme={currentTheme}>
@@ -640,90 +652,93 @@ export const App: React.FC = () => {
               </div>
             )}
 
-            {/* Top Row: Rose (Left) & Lavender (Right) Consoles */}
+            {/* Top Row: TL & TR Player Consoles */}
             <div className="w-full flex items-center justify-between px-1">
               <PlayerPod
-                player={rosePlayer}
-                color="rose"
-                isCurrentTurn={currentTurnPlayer?.color === 'rose'}
-                isMyTurn={isMyTurn && currentTurnPlayer?.color === 'rose'}
-                isLocalPlayer={rosePlayer?.id === myPlayerId}
+                player={tlPlayer}
+                color={quadrants.tl}
+                isCurrentTurn={currentTurnPlayer?.color === quadrants.tl}
+                isMyTurn={isMyTurn && currentTurnPlayer?.color === quadrants.tl}
+                isLocalPlayer={tlPlayer?.id === myPlayerId}
                 turnTimePercent={turnTimePercent}
-                diceValue={currentTurnPlayer?.color === 'rose' ? gameState.diceValue : null}
-                lastDiceValue={lastDiceByColor.rose}
+                diceValue={currentTurnPlayer?.color === quadrants.tl ? gameState.diceValue : null}
+                lastDiceValue={lastDiceByColor[quadrants.tl]}
                 rollId={gameState.rollId}
                 isRolling={gameState.isRolling}
-                canRoll={canRoll && currentTurnPlayer?.color === 'rose'}
+                canRoll={canRoll && currentTurnPlayer?.color === quadrants.tl}
                 onRoll={handleRollDice}
                 align="left"
-                chatBubble={homeChatBubbles?.rose}
+                chatBubble={homeChatBubbles?.[quadrants.tl]}
                 targetTokensToWin={gameState.targetTokensToWin}
               />
 
               <PlayerPod
-                player={lavenderPlayer}
-                color="lavender"
-                isCurrentTurn={currentTurnPlayer?.color === 'lavender'}
-                isMyTurn={isMyTurn && currentTurnPlayer?.color === 'lavender'}
-                isLocalPlayer={lavenderPlayer?.id === myPlayerId}
+                player={trPlayer}
+                color={quadrants.tr}
+                isCurrentTurn={currentTurnPlayer?.color === quadrants.tr}
+                isMyTurn={isMyTurn && currentTurnPlayer?.color === quadrants.tr}
+                isLocalPlayer={trPlayer?.id === myPlayerId}
                 turnTimePercent={turnTimePercent}
-                diceValue={currentTurnPlayer?.color === 'lavender' ? gameState.diceValue : null}
-                lastDiceValue={lastDiceByColor.lavender}
+                diceValue={currentTurnPlayer?.color === quadrants.tr ? gameState.diceValue : null}
+                lastDiceValue={lastDiceByColor[quadrants.tr]}
                 rollId={gameState.rollId}
                 isRolling={gameState.isRolling}
-                canRoll={canRoll && currentTurnPlayer?.color === 'lavender'}
+                canRoll={canRoll && currentTurnPlayer?.color === quadrants.tr}
                 onRoll={handleRollDice}
                 align="right"
-                chatBubble={homeChatBubbles?.lavender}
+                chatBubble={homeChatBubbles?.[quadrants.tr]}
                 targetTokensToWin={gameState.targetTokensToWin}
               />
             </div>
 
-            {/* 15x15 Clean Ludo Board */}
+            {/* 15x15 Clean Ludo Board (Rotated to user's perspective) */}
             <div className="w-full aspect-square">
               <LudoBoard
                 gameState={gameState}
                 myPlayerId={myPlayerId}
+                userColor={myColor}
                 onSelectToken={handleSelectToken}
                 onScreenTouch={handleScreenTouch}
+                homeChatBubbles={homeChatBubbles}
+                turnTimePercent={turnTimePercent}
               />
             </div>
 
-            {/* Bottom Row: Mint (Left) & Peach (Right) Consoles */}
+            {/* Bottom Row: Local User ALWAYS on Bottom-Left + Bottom-Right Console */}
             <div className="w-full flex items-center justify-between px-1">
               <PlayerPod
-                player={mintPlayer}
-                color="mint"
-                isCurrentTurn={currentTurnPlayer?.color === 'mint'}
-                isMyTurn={isMyTurn && currentTurnPlayer?.color === 'mint'}
-                isLocalPlayer={mintPlayer?.id === myPlayerId}
+                player={blPlayer}
+                color={quadrants.bl}
+                isCurrentTurn={currentTurnPlayer?.color === quadrants.bl}
+                isMyTurn={isMyTurn && currentTurnPlayer?.color === quadrants.bl}
+                isLocalPlayer={blPlayer?.id === myPlayerId}
                 turnTimePercent={turnTimePercent}
-                diceValue={currentTurnPlayer?.color === 'mint' ? gameState.diceValue : null}
-                lastDiceValue={lastDiceByColor.mint}
+                diceValue={currentTurnPlayer?.color === quadrants.bl ? gameState.diceValue : null}
+                lastDiceValue={lastDiceByColor[quadrants.bl]}
                 rollId={gameState.rollId}
                 isRolling={gameState.isRolling}
-                canRoll={canRoll && currentTurnPlayer?.color === 'mint'}
+                canRoll={canRoll && currentTurnPlayer?.color === quadrants.bl}
                 onRoll={handleRollDice}
                 align="left"
-                chatBubble={homeChatBubbles?.mint}
+                chatBubble={homeChatBubbles?.[quadrants.bl]}
                 targetTokensToWin={gameState.targetTokensToWin}
               />
 
               <PlayerPod
-                player={peachPlayer}
-                color="peach"
-                isCurrentTurn={currentTurnPlayer?.color === 'peach'}
-                isMyTurn={isMyTurn && currentTurnPlayer?.color === 'peach'}
-                isLocalPlayer={peachPlayer?.id === myPlayerId}
+                player={brPlayer}
+                color={quadrants.br}
+                isCurrentTurn={currentTurnPlayer?.color === quadrants.br}
+                isMyTurn={isMyTurn && currentTurnPlayer?.color === quadrants.br}
+                isLocalPlayer={brPlayer?.id === myPlayerId}
                 turnTimePercent={turnTimePercent}
-                diceValue={currentTurnPlayer?.color === 'peach' ? gameState.diceValue : null}
-                lastDiceValue={lastDiceByColor.peach}
+                diceValue={currentTurnPlayer?.color === quadrants.br ? gameState.diceValue : null}
+                lastDiceValue={lastDiceByColor[quadrants.br]}
                 rollId={gameState.rollId}
                 isRolling={gameState.isRolling}
-                canRoll={canRoll && currentTurnPlayer?.color === 'peach'}
+                canRoll={canRoll && currentTurnPlayer?.color === quadrants.br}
                 onRoll={handleRollDice}
                 align="right"
-                chatBubble={homeChatBubbles?.peach}
+                chatBubble={homeChatBubbles?.[quadrants.br]}
                 targetTokensToWin={gameState.targetTokensToWin}
               />
             </div>
