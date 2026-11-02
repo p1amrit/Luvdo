@@ -1,5 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { GameState, PlayerColor, Token } from '../types/game';
 import {
   MAIN_TRACK_COORDS,
@@ -45,9 +44,7 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
   myPlayerId,
   userColor = 'mint',
   onSelectToken,
-  onScreenTouch,
-  homeChatBubbles,
-  turnTimePercent
+  onScreenTouch
 }) => {
   const currentPlayer = gameState.players[gameState.currentTurnIndex];
   const isMyTurn = currentPlayer?.id === myPlayerId;
@@ -75,7 +72,7 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
         const prev = prevProgressRef.current[k];
         if (prev !== undefined && t.progress > prev && prev >= 0) {
           const steps = t.progress - prev;
-          const dur = steps * 120;
+          const dur = steps * 118;
           if (dur > maxAttackerDuration) maxAttackerDuration = dur;
         }
       });
@@ -104,9 +101,9 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
         tokenTimersRef.current[key] = timers;
 
         if (prevProg !== undefined && targetProg > prevProg && prevProg >= 0) {
-          // Walking forward step-by-step (silky-smooth 120ms pace with GPU acceleration)
+          // Walking forward step-by-step (silky-smooth 118ms pace with GPU acceleration)
           const stepsCount = targetProg - prevProg;
-          const stepSpeed = 120;
+          const stepSpeed = 118;
 
           for (let step = 1; step <= stepsCount; step++) {
             const nextVal = prevProg + step;
@@ -133,7 +130,7 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
                     delete copy[key];
                     return copy;
                   });
-                }, 100);
+                }, 90);
               }
             }, (step - 1) * stepSpeed);
             timers.push(timer);
@@ -146,7 +143,7 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
           // Wait for attacker to land -> play capture pop -> rewind backwards step-by-step to home slot
           const impactDelay = maxAttackerDuration > 0 ? maxAttackerDuration : 0;
           const rewindStepsCount = prevProg + 1; // from prevProg down to -1
-          const rewindSpeed = Math.max(22, Math.min(32, Math.floor(400 / rewindStepsCount)));
+          const rewindSpeed = Math.max(20, Math.min(30, Math.floor(400 / rewindStepsCount)));
 
           // Hold the victim token at its killed position until attacker arrives
           setAnimTokens(prev => ({
@@ -176,7 +173,7 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
                       delete copy[key];
                       return copy;
                     });
-                  }, 120);
+                  }, 100);
                 }
               }, (s - 1) * rewindSpeed);
               timers.push(stepTimer);
@@ -231,117 +228,98 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
     }
   };
 
-  // Traditional Ludo visual elements on track tiles (counter-rotated to stay upright)
-  const getSpecialCellContent = (r: number, c: number) => {
-    const mainIndex = MAIN_TRACK_COORDS.findIndex(item => item.r === r && item.c === c);
-    if (mainIndex === -1) return null;
+  // 100% MEMOIZED STATIC BOARD GRID:
+  // 225 track cells, 4 corner yard bases, center triangles SVG, and 16 base slots.
+  // This NEVER re-renders during token hops, giving 0-lag 60fps on low-end mobile devices!
+  const staticBoardGrid = useMemo(() => {
+    const getSpecialCellContent = (r: number, c: number) => {
+      const mainIndex = MAIN_TRACK_COORDS.findIndex(item => item.r === r && item.c === c);
+      if (mainIndex === -1) return null;
 
-    // 1. Starting Squares: Traditional colored entry tile with directional arrow & START badge
-    if (STARTING_TILES[mainIndex]) {
-      const startInfo = STARTING_TILES[mainIndex];
-      return (
-        <div
-          style={{ transform: `rotate(${-boardRotation}deg)` }}
-          className="w-full h-full flex flex-col items-center justify-center pointer-events-none select-none leading-none gap-0.5"
-        >
-          <span className="text-[10px] sm:text-xs text-white font-black filter drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]">
-            {startInfo.arrow}
-          </span>
-          <span className="text-[6.5px] sm:text-[8px] font-black uppercase tracking-tighter text-white/90">
-            {startInfo.dirLabel}
-          </span>
-        </div>
-      );
-    }
-
-    // 2. Safe Stumps (Indices 8, 21, 34, 47): Traditional golden charkoni sanctuary with star shield
-    if (SAFE_STUMP_INDICES.includes(mainIndex)) {
-      return (
-        <div
-          style={{ transform: `rotate(${-boardRotation}deg)` }}
-          className="w-full h-full flex items-center justify-center pointer-events-none select-none relative p-0.5"
-        >
-          {/* Inner traditional dashed charkoni cross-border */}
-          <div className="absolute inset-0.5 border border-dashed border-amber-300/40 rounded pointer-events-none" />
-          <div className="relative w-4 h-4 sm:w-5 sm:h-5 rounded bg-amber-400/25 border border-amber-300/90 flex items-center justify-center shadow-[0_0_8px_rgba(251,191,36,0.6)]">
-            <span className="text-amber-200 text-[10px] sm:text-xs font-black filter drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]">
-              ⭐
+      // 1. Starting Squares
+      if (STARTING_TILES[mainIndex]) {
+        const startInfo = STARTING_TILES[mainIndex];
+        return (
+          <div
+            style={{ transform: `rotate(${-boardRotation}deg)` }}
+            className="w-full h-full flex flex-col items-center justify-center pointer-events-none select-none leading-none gap-0.5"
+          >
+            <span className="text-[10px] sm:text-xs text-white font-black filter drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]">
+              {startInfo.arrow}
+            </span>
+            <span className="text-[6.5px] sm:text-[8px] font-black uppercase tracking-tighter text-white/90">
+              {startInfo.dirLabel}
             </span>
           </div>
-        </div>
-      );
-    }
-
-    return null;
-  };
-
-  const getRunwayColor = (r: number, c: number): string | null => {
-    for (const [colKey, runway] of Object.entries(RUNWAY_COORDS)) {
-      if (runway.some(item => item.r === r && item.c === c)) {
-        return colKey;
+        );
       }
-    }
-    return null;
-  };
 
-  return (
-    <div
-      onClick={handleBoardClick}
-      className="relative w-full max-w-[min(96vw,500px)] aspect-square mx-auto p-1.5 sm:p-3 rounded-2xl sm:rounded-3xl glass-panel shadow-[0_12px_45px_rgba(0,0,0,0.6)] border border-white/20 select-none touch-manipulation"
-    >
-      {/* 15x15 Board Grid - Smoothly rotated so user's yard is ALWAYS at Bottom-Left */}
-      <div
-        className="relative w-full h-full grid grid-cols-15 grid-rows-15 gap-[1px] sm:gap-[2px] bg-slate-950/80 p-1 rounded-xl sm:rounded-2xl border border-white/10 overflow-hidden"
-        style={{
-          transform: `rotate(${boardRotation}deg)`,
-          transition: 'transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)'
-        }}
-      >
+      // 2. Safe Stumps (Indices 8, 21, 34, 47)
+      if (SAFE_STUMP_INDICES.includes(mainIndex)) {
+        return (
+          <div
+            style={{ transform: `rotate(${-boardRotation}deg)` }}
+            className="w-full h-full flex items-center justify-center pointer-events-none select-none relative p-0.5"
+          >
+            <div className="absolute inset-0.5 border border-dashed border-amber-300/40 rounded pointer-events-none" />
+            <div className="relative w-4 h-4 sm:w-5 sm:h-5 rounded bg-amber-400/25 border border-amber-300/90 flex items-center justify-center shadow-[0_0_8px_rgba(251,191,36,0.6)]">
+              <span className="text-amber-200 text-[10px] sm:text-xs font-black filter drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]">
+                ⭐
+              </span>
+            </div>
+          </div>
+        );
+      }
 
+      return null;
+    };
+
+    const getRunwayColor = (r: number, c: number): string | null => {
+      for (const [colKey, runway] of Object.entries(RUNWAY_COORDS)) {
+        if (runway.some(item => item.r === r && item.c === c)) {
+          return colKey;
+        }
+      }
+      return null;
+    };
+
+    return (
+      <>
         {/* 1. Base Corner: Rose (Top-Left, 0..5, 0..5) */}
         <div className={`relative col-start-1 col-span-6 row-start-1 row-span-6 rounded-2xl bg-gradient-to-br from-rose-950/90 via-pink-900/60 to-rose-900/40 p-2 sm:p-2.5 border-2 border-rose-500/50 flex items-center justify-center shadow-lg ${
           !rosePlayer ? 'opacity-30' : ''
         }`}>
-          {/* Elevated Yard Card matching Ludo King TokenBaseHome */}
-          <div className="w-[80%] h-[80%] rounded-2xl bg-white/[0.08] backdrop-blur-md border border-rose-400/30 shadow-[inset_0_2px_8px_rgba(255,255,255,0.1),0_4px_16px_rgba(0,0,0,0.5)] flex items-center justify-center" />
+          <div className="w-[80%] h-[80%] rounded-2xl bg-white/[0.08] border border-rose-400/30 shadow-[inset_0_2px_8px_rgba(255,255,255,0.1),0_4px_16px_rgba(0,0,0,0.5)] flex items-center justify-center" />
         </div>
 
         {/* 2. Base Corner: Lavender (Top-Right, 0..5, 9..14) */}
         <div className={`relative col-start-10 col-span-6 row-start-1 row-span-6 rounded-2xl bg-gradient-to-br from-purple-950/90 via-indigo-900/60 to-purple-900/40 p-2 sm:p-2.5 border-2 border-purple-500/50 flex items-center justify-center shadow-lg ${
           !lavenderPlayer ? 'opacity-30' : ''
         }`}>
-          {/* Elevated Yard Card matching Ludo King TokenBaseHome */}
-          <div className="w-[80%] h-[80%] rounded-2xl bg-white/[0.08] backdrop-blur-md border border-purple-400/30 shadow-[inset_0_2px_8px_rgba(255,255,255,0.1),0_4px_16px_rgba(0,0,0,0.5)] flex items-center justify-center" />
+          <div className="w-[80%] h-[80%] rounded-2xl bg-white/[0.08] border border-purple-400/30 shadow-[inset_0_2px_8px_rgba(255,255,255,0.1),0_4px_16px_rgba(0,0,0,0.5)] flex items-center justify-center" />
         </div>
 
         {/* 3. Base Corner: Peach (Bottom-Right, 9..14, 9..14) */}
         <div className={`relative col-start-10 col-span-6 row-start-10 row-span-6 rounded-2xl bg-gradient-to-br from-amber-950/90 via-orange-900/60 to-amber-900/40 p-2 sm:p-2.5 border-2 border-amber-500/50 flex items-center justify-center shadow-lg ${
           !peachPlayer ? 'opacity-30' : ''
         }`}>
-          {/* Elevated Yard Card matching Ludo King TokenBaseHome */}
-          <div className="w-[80%] h-[80%] rounded-2xl bg-white/[0.08] backdrop-blur-md border border-amber-400/30 shadow-[inset_0_2px_8px_rgba(255,255,255,0.1),0_4px_16px_rgba(0,0,0,0.5)] flex items-center justify-center" />
+          <div className="w-[80%] h-[80%] rounded-2xl bg-white/[0.08] border border-amber-400/30 shadow-[inset_0_2px_8px_rgba(255,255,255,0.1),0_4px_16px_rgba(0,0,0,0.5)] flex items-center justify-center" />
         </div>
 
         {/* 4. Base Corner: Mint (Bottom-Left, 9..14, 0..5) */}
         <div className={`relative col-start-1 col-span-6 row-start-10 row-span-6 rounded-2xl bg-gradient-to-br from-teal-950/90 via-emerald-900/60 to-teal-900/40 p-2 sm:p-2.5 border-2 border-teal-500/50 flex items-center justify-center shadow-lg ${
           !mintPlayer ? 'opacity-30' : ''
         }`}>
-          {/* Elevated Yard Card matching Ludo King TokenBaseHome */}
-          <div className="w-[80%] h-[80%] rounded-2xl bg-white/[0.08] backdrop-blur-md border border-teal-400/30 shadow-[inset_0_2px_8px_rgba(255,255,255,0.1),0_4px_16px_rgba(0,0,0,0.5)] flex items-center justify-center" />
+          <div className="w-[80%] h-[80%] rounded-2xl bg-white/[0.08] border border-teal-400/30 shadow-[inset_0_2px_8px_rgba(255,255,255,0.1),0_4px_16px_rgba(0,0,0,0.5)] flex items-center justify-center" />
         </div>
 
         {/* Center: Traditional 4-Triangle Ludo Home (rows 6..8, cols 6..8) */}
         <div className="col-start-7 col-span-3 row-start-7 row-span-3 rounded-xl bg-slate-900 border border-white/20 relative overflow-hidden flex items-center justify-center shadow-inner">
           <svg className="w-full h-full" viewBox="0 0 100 100">
-            {/* Top triangle: Lavender */}
             <polygon points="0,0 100,0 50,50" fill="#a855f7" fillOpacity="0.55" stroke="#a855f7" strokeWidth="0.5" />
-            {/* Right triangle: Peach */}
             <polygon points="100,0 100,100 50,50" fill="#fb923c" fillOpacity="0.55" stroke="#fb923c" strokeWidth="0.5" />
-            {/* Bottom triangle: Mint */}
             <polygon points="100,100 0,100 50,50" fill="#2dd4bf" fillOpacity="0.55" stroke="#2dd4bf" strokeWidth="0.5" />
-            {/* Left triangle: Rose */}
             <polygon points="0,100 0,0 50,50" fill="#f43f5e" fillOpacity="0.55" stroke="#f43f5e" strokeWidth="0.5" />
-            {/* Center star badge (counter-rotated to stay upright) */}
             <circle cx="50" cy="50" r="13" fill="#090d16" stroke="#ffffff" strokeWidth="1.2" />
             <text
               x="50"
@@ -372,9 +350,8 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
             const runwayColor = getRunwayColor(r, c);
             const specialContent = getSpecialCellContent(r, c);
 
-            // Starting squares & Safe Stumps highlight
             const mainIndex = MAIN_TRACK_COORDS.findIndex(item => item.r === r && item.c === c);
-            let cellBg = 'bg-white/[0.05] hover:bg-white/[0.1]';
+            let cellBg = 'bg-white/[0.05]';
 
             if (mainIndex === 0) {
               cellBg = 'bg-gradient-to-br from-rose-600/80 via-rose-700/70 to-pink-800/70 border-2 border-rose-400 shadow-[0_0_12px_rgba(244,63,94,0.4)]';
@@ -385,7 +362,6 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
             } else if (mainIndex === 39) {
               cellBg = 'bg-gradient-to-br from-teal-600/80 via-emerald-700/70 to-teal-800/70 border-2 border-teal-400 shadow-[0_0_12px_rgba(45,212,191,0.4)]';
             } else if (SAFE_STUMP_INDICES.includes(mainIndex)) {
-              // 4 Traditional Safe Stumps
               cellBg = 'bg-gradient-to-br from-amber-950/80 via-slate-900/95 to-yellow-950/70 border-2 border-amber-400/80 shadow-[inset_0_0_8px_rgba(251,191,36,0.35),0_0_10px_rgba(245,158,11,0.35)]';
             } else if (runwayColor === 'rose') cellBg = 'bg-rose-500/40 border-rose-400/40';
             else if (runwayColor === 'lavender') cellBg = 'bg-purple-500/40 border-purple-400/40';
@@ -396,7 +372,7 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
               <div
                 key={`cell-${r}-${c}`}
                 style={{ gridRowStart: r + 1, gridColumnStart: c + 1 }}
-                className={`relative rounded flex items-center justify-center border border-white/[0.08] transition-colors ${cellBg}`}
+                className={`relative rounded flex items-center justify-center border border-white/[0.08] ${cellBg}`}
               >
                 {specialContent}
               </div>
@@ -404,9 +380,9 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
           })
         )}
 
-        {/* Base Sunken Token Slot Circles (Centered 2x2 grid matching Ludo King) */}
+        {/* Base Sunken Token Slot Circles */}
         {(['rose', 'lavender', 'peach', 'mint'] as PlayerColor[]).map((col) => {
-          const player = gameState.players.find(p => p.color === col);
+          const player = col === 'rose' ? rosePlayer : col === 'lavender' ? lavenderPlayer : col === 'peach' ? peachPlayer : mintPlayer;
           const slots = BASE_SLOTS_COORDS[col];
           const slotStyles = {
             rose: {
@@ -442,173 +418,175 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
                 !player ? 'opacity-25' : ''
               }`}
             >
-              <div className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full border-2 ${slotStyles.border} ${slotStyles.bg} flex items-center justify-center transition-all`}>
+              <div className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full border-2 ${slotStyles.border} ${slotStyles.bg} flex items-center justify-center`}>
                 <div className={`w-2 h-2 rounded-full ${slotStyles.dot}`} />
               </div>
             </div>
           ));
         })}
+      </>
+    );
+  }, [boardRotation, !!rosePlayer, !!lavenderPlayer, !!peachPlayer, !!mintPlayer]);
 
-        {/* Hardware-Accelerated 60fps Pawn Layer (GPU translate3d with parabolic hop & tactile shadow) */}
+  // Group tokens by coordinate so multiple tokens on the same tile/stump cluster neatly
+  const cellTokensMap = useMemo(() => {
+    const map = new Map<string, typeof placedTokens>();
+    placedTokens.forEach((t) => {
+      const cellKey = `${t.coord.r}-${t.coord.c}`;
+      if (!map.has(cellKey)) {
+        map.set(cellKey, []);
+      }
+      map.get(cellKey)!.push(t);
+    });
+    return map;
+  }, [placedTokens]);
+
+  return (
+    <div
+      onClick={handleBoardClick}
+      className="relative w-full max-w-[min(96vw,500px)] aspect-square mx-auto p-1.5 sm:p-3 rounded-2xl sm:rounded-3xl glass-panel shadow-[0_12px_45px_rgba(0,0,0,0.6)] border border-white/20 select-none touch-manipulation"
+    >
+      {/* 15x15 Board Grid - Rotated so user's yard is ALWAYS at Bottom-Left */}
+      <div
+        className="relative w-full h-full grid grid-cols-15 grid-rows-15 gap-[1px] sm:gap-[2px] bg-slate-950/80 p-1 rounded-xl sm:rounded-2xl border border-white/10 overflow-hidden"
+        style={{
+          transform: `rotate(${boardRotation}deg)`,
+          transition: 'transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)'
+        }}
+      >
+        {/* Memoized static board cells - zero diffing cost during movement */}
+        {staticBoardGrid}
+
+        {/* 60FPS Pure Hardware-Accelerated Pawn Layer (GPU translate3d off the JS thread) */}
         <div className="absolute inset-1 pointer-events-none z-30">
-          {(() => {
-            // Group tokens by coordinate so multiple tokens on the same safe stump or tile never obscure each other
-            const cellTokensMap = new Map<string, typeof placedTokens>();
-            placedTokens.forEach((t) => {
-              const cellKey = `${t.coord.r}-${t.coord.c}`;
-              if (!cellTokensMap.has(cellKey)) {
-                cellTokensMap.set(cellKey, []);
+          {placedTokens.map((item) => {
+            const colorCfg = COLOR_STYLES[item.playerColor];
+            const isSelectedMovable = item.isMovable;
+            const isHopping = item.isHopping;
+            const isRewinding = item.isRewinding;
+
+            const cellKey = `${item.coord.r}-${item.coord.c}`;
+            const cellGroup = cellTokensMap.get(cellKey) || [item];
+            const clusterCount = cellGroup.length;
+            const clusterIndex = cellGroup.indexOf(item);
+
+            let clusterX = 0;
+            let clusterY = 0;
+            let clusterScale = 1;
+
+            if (clusterCount === 2) {
+              clusterScale = 0.82;
+              clusterX = clusterIndex === 0 ? -6 : 6;
+              clusterY = 0;
+            } else if (clusterCount === 3) {
+              clusterScale = 0.72;
+              if (clusterIndex === 0) {
+                clusterX = -6;
+                clusterY = -5;
+              } else if (clusterIndex === 1) {
+                clusterX = 6;
+                clusterY = -5;
+              } else {
+                clusterX = 0;
+                clusterY = 5;
               }
-              cellTokensMap.get(cellKey)!.push(t);
-            });
-
-            return placedTokens.map((item) => {
-              const colorCfg = COLOR_STYLES[item.playerColor];
-              const isSelectedMovable = item.isMovable;
-              const isHopping = item.isHopping;
-              const isRewinding = item.isRewinding;
-
-              const cellKey = `${item.coord.r}-${item.coord.c}`;
-              const cellGroup = cellTokensMap.get(cellKey) || [item];
-              const clusterCount = cellGroup.length;
-              const clusterIndex = cellGroup.indexOf(item);
-
-              let clusterX = 0;
-              let clusterY = 0;
-              let clusterScale = 1;
-
-              if (clusterCount === 2) {
-                clusterScale = 0.82;
-                clusterX = clusterIndex === 0 ? -6 : 6;
-                clusterY = 0;
-              } else if (clusterCount === 3) {
-                clusterScale = 0.72;
-                if (clusterIndex === 0) {
-                  clusterX = -6;
-                  clusterY = -5;
-                } else if (clusterIndex === 1) {
-                  clusterX = 6;
-                  clusterY = -5;
-                } else {
-                  clusterX = 0;
-                  clusterY = 5;
-                }
-              } else if (clusterCount >= 4) {
-                clusterScale = 0.65;
-                if (clusterIndex === 0) {
-                  clusterX = -5.5;
-                  clusterY = -5.5;
-                } else if (clusterIndex === 1) {
-                  clusterX = 5.5;
-                  clusterY = -5.5;
-                } else if (clusterIndex === 2) {
-                  clusterX = -5.5;
-                  clusterY = 5.5;
-                } else {
-                  clusterX = 5.5;
-                  clusterY = 5.5;
-                }
+            } else if (clusterCount >= 4) {
+              clusterScale = 0.65;
+              if (clusterIndex === 0) {
+                clusterX = -5.5;
+                clusterY = -5.5;
+              } else if (clusterIndex === 1) {
+                clusterX = 5.5;
+                clusterY = -5.5;
+              } else if (clusterIndex === 2) {
+                clusterX = -5.5;
+                clusterY = 5.5;
+              } else {
+                clusterX = 5.5;
+                clusterY = 5.5;
               }
+            }
 
-              return (
-                <motion.div
-                  key={`token-${item.playerColor}-${item.token.id}`}
+            // Outer wrapper translates smoothly along the 15x15 board coordinates on the GPU
+            return (
+              <div
+                key={`token-${item.playerColor}-${item.token.id}`}
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '6.6667%',
+                  height: '6.6667%',
+                  transform: `translate3d(${item.coord.c * 100}%, ${item.coord.r * 100}%, 0)`,
+                  transition: isRewinding
+                    ? 'transform 26ms linear'
+                    : isHopping
+                    ? 'transform 118ms cubic-bezier(0.25, 0.1, 0.25, 1)'
+                    : 'transform 180ms ease-out',
+                  willChange: 'transform'
+                }}
+                className={`flex items-center justify-center ${
+                  isSelectedMovable ? 'z-40 pointer-events-auto' : 'z-30 pointer-events-none'
+                }`}
+              >
+                {/* Inner Tactile Pawn: Parabolic Bounce Arc + Drop Shadow + Counter-Rotation */}
+                <div
                   style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    width: '6.6667%',
-                    height: '6.6667%',
+                    transform: `translate3d(${clusterX}px, ${isHopping ? -9 : clusterY}px, 0) scale(${
+                      isSelectedMovable ? clusterScale * 1.08 : clusterScale
+                    }) rotate(${isRewinding ? -boardRotation - 360 : -boardRotation}deg)`,
+                    transition: isHopping
+                      ? 'transform 118ms cubic-bezier(0.33, 1, 0.68, 1)'
+                      : 'transform 180ms ease-out',
                     willChange: 'transform'
                   }}
-                  animate={{
-                    x: `${item.coord.c * 100}%`,
-                    y: `${item.coord.r * 100}%`
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (isSelectedMovable) {
+                      sounds.playTokenStep();
+                      onSelectToken(item.token.id);
+                    }
                   }}
-                  transition={
-                    isRewinding
-                      ? { duration: 0.028, ease: 'linear' }
-                      : isHopping
-                      ? { duration: 0.118, ease: [0.25, 0.1, 0.25, 1] }
-                      : { type: 'spring', stiffness: 500, damping: 32 }
-                  }
-                  className={`flex items-center justify-center ${
-                    isSelectedMovable ? 'z-40 pointer-events-auto' : 'z-30 pointer-events-none'
+                  className={`relative flex items-center justify-center ${
+                    isSelectedMovable ? 'cursor-pointer' : ''
                   }`}
                 >
-                  {/* Inner Tactile Pawn: Parabolic Bounce Arc + Drop Shadow + Counter-Rotation */}
-                  <motion.div
-                    animate={{
-                      x: clusterX,
-                      y: isHopping ? -10 : clusterY,
-                      scale: isHopping
-                        ? 1.2
-                        : isSelectedMovable
-                        ? [clusterScale, clusterScale * 1.15, clusterScale]
-                        : clusterScale,
-                      rotate: isRewinding ? -boardRotation - 360 : -boardRotation
-                    }}
-                    transition={
-                      isHopping
-                        ? {
-                            y: { duration: 0.118, ease: [0.33, 1, 0.68, 1] },
-                            scale: { duration: 0.118 }
-                          }
-                        : isSelectedMovable
-                        ? {
-                            scale: { repeat: Infinity, duration: 1.2, ease: 'easeInOut' }
-                          }
-                        : { duration: 0.2, ease: 'easeOut' }
-                    }
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (isSelectedMovable) {
-                        sounds.playTokenStep();
-                        onSelectToken(item.token.id);
-                      }
-                    }}
-                    className={`relative flex items-center justify-center ${
-                      isSelectedMovable ? 'cursor-pointer' : ''
+                  {/* Dynamic 3D Ground Drop Shadow */}
+                  <div
+                    className={`absolute -bottom-1 w-5 h-1.5 sm:w-6 sm:h-2 rounded-full bg-black/60 pointer-events-none transition-transform duration-100 ${
+                      isHopping ? 'scale-75 opacity-30 -translate-y-1' : 'scale-100 opacity-70'
+                    }`}
+                  />
+
+                  {/* Glossy Beveled Token Pawn */}
+                  <div
+                    className={`relative w-5 h-5 sm:w-7 sm:h-7 rounded-full flex items-center justify-center border sm:border-2 border-white shadow-md active:scale-95 ${
+                      colorCfg.tokenBg
+                    } ${
+                      isSelectedMovable
+                        ? 'ring-2 ring-white/95 ring-offset-1 ring-offset-slate-900 shadow-[0_0_14px_rgba(255,255,255,0.95)] animate-pulse'
+                        : ''
                     }`}
                   >
-                    {/* Dynamic 3D Ground Drop Shadow */}
-                    <div
-                      className={`absolute -bottom-1 w-5 h-1.5 sm:w-6 sm:h-2 rounded-full bg-black/60 blur-[2px] transition-all pointer-events-none ${
-                        isHopping ? 'scale-75 opacity-30 -translate-y-1' : 'scale-100 opacity-70'
-                      }`}
-                    />
+                    {/* Touch Target Expander for Mobile Ease */}
+                    {isSelectedMovable && (
+                      <div className="absolute -inset-3 sm:-inset-2 rounded-full cursor-pointer -z-10" />
+                    )}
 
-                    {/* Glossy Beveled Token Pawn */}
-                    <div
-                      className={`relative w-5 h-5 sm:w-7 sm:h-7 rounded-full flex items-center justify-center border sm:border-2 border-white shadow-md transition-transform active:scale-95 ${
-                        colorCfg.tokenBg
-                      } ${
-                        isSelectedMovable
-                          ? 'ring-2 ring-white/90 ring-offset-1 ring-offset-slate-900 shadow-[0_0_12px_rgba(255,255,255,0.95)]'
-                          : ''
-                      }`}
-                    >
-                      {/* Touch Target Expander for Mobile Ease */}
-                      {isSelectedMovable && (
-                        <div className="absolute -inset-3 sm:-inset-2 rounded-full cursor-pointer -z-10" />
-                      )}
+                    <span className="text-[9px] sm:text-xs font-bold leading-none select-none">
+                      {colorCfg.emoji}
+                    </span>
 
-                      <span className="text-[9px] sm:text-xs font-bold leading-none select-none">
-                        {colorCfg.emoji}
-                      </span>
-
-                      {/* Moving pulse indicator dot */}
-                      {isSelectedMovable && (
-                        <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-emerald-400 border border-slate-900 animate-pulse" />
-                      )}
-                    </div>
-                  </motion.div>
-                </motion.div>
-              );
-            });
-          })()}
+                    {/* Moving pulse indicator dot */}
+                    {isSelectedMovable && (
+                      <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-emerald-400 border border-slate-900 animate-ping" />
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
-
       </div>
     </div>
   );

@@ -520,69 +520,26 @@ export const App: React.FC = () => {
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col items-center justify-center p-2 sm:p-4 pb-24">
         {!inRoom ? (
-          /* Landing Screen */
-          <div className="w-full max-w-xl mx-auto text-center space-y-6 sm:space-y-8 px-4">
-            <div className="space-y-3 sm:space-y-4">
-              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full glass-pill border border-pink-400/40 text-pink-200 text-xs font-bold shadow-md bg-white/5">
-                <span className="animate-pulse">🎲</span>
-                <span>The Modern Real-Time Ludo Experience</span>
-                <span className="text-emerald-400 font-extrabold text-[10px] bg-emerald-500/20 px-2 py-0.5 rounded-full border border-emerald-400/30">60 FPS</span>
-              </div>
-
-              <h1 className="text-4xl sm:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-pink-300 via-rose-200 to-purple-300 tracking-tight leading-tight">
-                Roll, Laugh & Win.
+          /* Clean Minimal Landing Screen */
+          <div className="w-full max-w-md mx-auto text-center space-y-5 px-3">
+            <div className="space-y-1">
+              <h1 className="text-4xl sm:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-pink-300 via-rose-200 to-purple-300 tracking-tight">
+                LUVDO
               </h1>
-
-              <p className="text-xs sm:text-sm text-pink-100/80 max-w-md mx-auto leading-relaxed font-medium">
-                Smooth 60FPS pawn motion, low-latency live voice chat, 2v2 couple squads, and authentic Ludo King kill rewinds. Play with your besties, your date, or smart bots!
+              <p className="text-xs sm:text-sm text-pink-200/70 font-medium">
+                The Real-Time Social Ludo
               </p>
-
-              {/* Feature Highlights Pills */}
-              <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2 pt-1">
-                <span className="px-2.5 py-1 rounded-xl bg-white/10 border border-white/15 text-[11px] font-bold text-pink-200 flex items-center gap-1">
-                  🎙️ Live Voice Chat
-                </span>
-                <span className="px-2.5 py-1 rounded-xl bg-white/10 border border-white/15 text-[11px] font-bold text-teal-200 flex items-center gap-1">
-                  ⚡ 60FPS Pawn Motion
-                </span>
-                <span className="px-2.5 py-1 rounded-xl bg-white/10 border border-white/15 text-[11px] font-bold text-purple-200 flex items-center gap-1">
-                  👫 2v2 & 1v1 Battles
-                </span>
-                <span className="px-2.5 py-1 rounded-xl bg-white/10 border border-white/15 text-[11px] font-bold text-amber-200 flex items-center gap-1">
-                  📲 Instant WhatsApp Share
-                </span>
-              </div>
             </div>
 
-            {/* Setup Your Profile (Name & Avatar - Set Once Before Entering) */}
-            <div className="p-5 sm:p-6 rounded-3xl glass-panel border border-white/20 text-left space-y-4 shadow-2xl">
-              <div className="flex items-center justify-between border-b border-white/10 pb-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-xl">✨</span>
-                  <h3 className="text-sm sm:text-base font-black text-white">
-                    Set Up Your Player Profile
-                  </h3>
-                </div>
-                <span className="text-[11px] text-pink-300 font-semibold">
-                  (Locked upon entering room)
-                </span>
-              </div>
-
-              {/* Avatar + Nickname Big Preview & Input */}
-              <div className="flex flex-col sm:flex-row items-center gap-4">
-                <div className="flex flex-col items-center gap-1">
-                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-pink-500/30 to-purple-500/30 border-2 border-pink-400 p-1 flex items-center justify-center shadow-lg ring-4 ring-pink-400/20 overflow-hidden">
-                    <AvatarImg avatar={guestAvatar} className="w-full h-full object-cover rounded-xl" />
-                  </div>
-                  <span className="text-[10px] text-pink-200/80 font-bold">Your Avatar</span>
+            {/* Compact Profile Card */}
+            <div className="p-4 sm:p-5 rounded-3xl glass-panel border border-white/20 text-left space-y-3.5 shadow-2xl">
+              {/* Avatar + Name Input Row */}
+              <div className="flex items-center gap-3">
+                <div className="w-13 h-13 sm:w-14 sm:h-14 shrink-0 rounded-2xl bg-gradient-to-br from-pink-500/30 to-purple-500/30 border-2 border-pink-400/80 p-0.5 flex items-center justify-center shadow-lg overflow-hidden">
+                  <AvatarImg avatar={guestAvatar} className="w-full h-full object-cover rounded-xl" />
                 </div>
 
-                <div className="flex-1 w-full space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-white/90">Your Player Name: <span className="text-pink-400">*</span></span>
-                    <span className="text-[10px] text-pink-200/60 font-semibold">Required to join match</span>
-                  </div>
-
+                <div className="flex-1 min-w-0 space-y-1">
                   <input
                     type="text"
                     value={guestName}
@@ -591,59 +548,53 @@ export const App: React.FC = () => {
                       if (nameError) setNameError(null);
                     }}
                     maxLength={20}
-                    placeholder="Enter your name (e.g. Amrit)..."
-                    className={`w-full px-4 py-3 rounded-xl bg-slate-950/70 border text-white font-bold text-sm focus:outline-none transition-all placeholder-white/30 shadow-inner ${
+                    placeholder="Enter your name..."
+                    className={`w-full px-3.5 py-2.5 rounded-xl bg-slate-950/70 border text-white font-bold text-sm focus:outline-none transition-all placeholder-white/30 shadow-inner ${
                       nameError
                         ? 'border-rose-500 ring-2 ring-rose-500/40'
-                        : 'border-white/25 focus:ring-2 focus:ring-pink-500 focus:border-transparent'
+                        : 'border-white/20 focus:ring-2 focus:ring-pink-500 focus:border-transparent'
                     }`}
                   />
                   {nameError && (
-                    <p className="text-xs text-rose-400 font-bold flex items-center gap-1 animate-fade-in">
+                    <p className="text-[11px] text-rose-400 font-bold flex items-center gap-1">
                       ⚠️ {nameError}
                     </p>
                   )}
                 </div>
               </div>
 
-              {/* Cool Avatars Selection */}
-              <div className="space-y-2 pt-1">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-white/80">Choose Your Avatar:</span>
-                  <span className="text-[10px] text-pink-300 font-semibold">16 Cool Characters</span>
-                </div>
-                <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
-                  {COOL_AVATARS.map((av) => {
-                    const isSelected = guestAvatar === av.url;
-                    return (
-                      <button
-                        key={av.id}
-                        type="button"
-                        onClick={() => setGuestAvatar(av.url)}
-                        className={`aspect-square p-1 rounded-xl flex items-center justify-center transition-all ${
-                          isSelected
-                            ? 'bg-gradient-to-br from-pink-500 to-purple-600 border-2 border-white scale-105 shadow-xl ring-2 ring-pink-400'
-                            : 'bg-white/10 hover:bg-white/20 border border-white/10 hover:scale-102'
-                        }`}
-                        title={av.name}
-                      >
-                        <AvatarImg avatar={av.url} alt={av.name} className="w-full h-full object-cover rounded-lg" />
-                      </button>
-                    );
-                  })}
-                </div>
+              {/* 16 Avatars Grid */}
+              <div className="grid grid-cols-8 gap-1.5 sm:gap-2 pt-1">
+                {COOL_AVATARS.map((av) => {
+                  const isSelected = guestAvatar === av.url;
+                  return (
+                    <button
+                      key={av.id}
+                      type="button"
+                      onClick={() => setGuestAvatar(av.url)}
+                      className={`aspect-square p-0.5 rounded-xl flex items-center justify-center transition-all ${
+                        isSelected
+                          ? 'bg-gradient-to-br from-pink-500 to-purple-600 border-2 border-white scale-105 shadow-lg ring-2 ring-pink-400'
+                          : 'bg-white/10 hover:bg-white/20 border border-white/10 hover:scale-105'
+                      }`}
+                      title={av.name}
+                    >
+                      <AvatarImg avatar={av.url} alt={av.name} className="w-full h-full object-cover rounded-lg" />
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
             {/* Action Buttons */}
-            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3 justify-center">
               <button
                 onClick={handleCreateRoom}
                 disabled={isCreatingRoom}
-                className="flex-1 py-4 px-6 rounded-2xl bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-600 hover:from-pink-600 hover:to-indigo-700 disabled:opacity-60 text-white font-bold text-sm shadow-[0_0_30px_rgba(244,63,94,0.5)] transition-transform active:scale-95 flex items-center justify-center gap-2"
+                className="flex-1 py-3.5 sm:py-4 px-6 rounded-2xl bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-600 hover:from-pink-600 hover:to-indigo-700 disabled:opacity-60 text-white font-bold text-sm shadow-[0_0_25px_rgba(244,63,94,0.45)] transition-transform active:scale-95 flex items-center justify-center gap-2"
               >
                 <Sparkles size={18} className={isCreatingRoom ? "animate-spin" : ""} />
-                <span>{isCreatingRoom ? 'Connecting to Server...' : 'Create Room'}</span>
+                <span>{isCreatingRoom ? 'Creating...' : 'Create Room'}</span>
               </button>
 
               <button
@@ -655,7 +606,7 @@ export const App: React.FC = () => {
                   setNameError(null);
                   setJoinModalOpen(true);
                 }}
-                className="flex-1 py-4 px-6 rounded-2xl glass-panel hover:bg-white/15 border border-white/20 text-white font-bold text-sm transition-transform active:scale-95 flex items-center justify-center gap-2"
+                className="flex-1 py-3.5 sm:py-4 px-6 rounded-2xl glass-panel hover:bg-white/15 border border-white/20 text-white font-bold text-sm transition-transform active:scale-95 flex items-center justify-center gap-2"
               >
                 <Users size={18} />
                 <span>Join with Code</span>

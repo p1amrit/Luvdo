@@ -76,7 +76,7 @@ const COLOR_POD_CONFIG = {
   }
 };
 
-export const PlayerPod: React.FC<PlayerPodProps> = ({
+export const PlayerPod: React.FC<PlayerPodProps> = React.memo(({
   player,
   color,
   isCurrentTurn,
@@ -386,4 +386,4 @@ export const PlayerPod: React.FC<PlayerPodProps> = ({
       )}
     </div>
   );
-};
+});
