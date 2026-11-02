@@ -45,6 +45,8 @@ export const App: React.FC = () => {
   const [homeChatBubbles, setHomeChatBubbles] = useState<Record<string, { text: string; timestamp: number }>>({});
   const [synchronizedPulse, setSynchronizedPulse] = useState(false);
   const [partnerTouch, setPartnerTouch] = useState<{ x: number; y: number } | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const autoMoveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 15-second Turn Countdown Timer & Auto-play fallback
   const [turnTimePercent, setTurnTimePercent] = useState<number>(100);
@@ -242,6 +244,11 @@ export const App: React.FC = () => {
     socket.on('dice-rolled', ({ gameState: newGameState, rollResult }: { gameState: GameState; rollResult?: { movableTokenIds: number[] } }) => {
       setGameState({ ...newGameState });
 
+      if (autoMoveTimerRef.current) {
+        clearTimeout(autoMoveTimerRef.current);
+        autoMoveTimerRef.current = null;
+      }
+
       // Auto-move token briskly if it is the ONLY eligible moving token right as the dice settles!
       const currentTurnPlayer = newGameState.players[newGameState.currentTurnIndex];
       const movable = rollResult?.movableTokenIds || newGameState.movableTokenIds || [];
@@ -252,12 +259,13 @@ export const App: React.FC = () => {
         !newGameState.winner
       ) {
         const singleTokenId = movable[0];
-        setTimeout(() => {
+        autoMoveTimerRef.current = setTimeout(() => {
+          autoMoveTimerRef.current = null;
           if (roomIdRef.current) {
             sounds.playTokenStep();
             socketService.moveToken(roomIdRef.current, myPlayerId, singleTokenId);
           }
-        }, 440);
+        }, 460);
       }
     });
 
@@ -285,7 +293,8 @@ export const App: React.FC = () => {
     });
 
     socket.on('error-message', ({ message }: { message: string }) => {
-      alert(message);
+      setToastMessage(message);
+      setTimeout(() => setToastMessage(null), 3200);
       if (message.toLowerCase().includes('not found')) {
         setInRoom(false);
         setRoom(null);
@@ -372,6 +381,10 @@ export const App: React.FC = () => {
   };
 
   const handleSelectToken = (tokenId: number) => {
+    if (autoMoveTimerRef.current) {
+      clearTimeout(autoMoveTimerRef.current);
+      autoMoveTimerRef.current = null;
+    }
     if (!room || !gameState) return;
     socketService.moveToken(room.id, myPlayerId, tokenId);
   };
@@ -691,6 +704,14 @@ export const App: React.FC = () => {
               {playerNotice.type === 'join' ? '🎉 Welcome to the match!' : '👋 See you next time!'}
             </p>
           </div>
+        </div>
+      )}
+
+      {/* Non-Blocking Floating Toast Notification */}
+      {toastMessage && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-4 py-2 rounded-2xl glass-panel bg-slate-950/95 border border-amber-400/60 shadow-2xl animate-fade-in pointer-events-none text-white text-xs font-bold backdrop-blur-xl">
+          <span>⚠️</span>
+          <span>{toastMessage}</span>
         </div>
       )}
 

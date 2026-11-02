@@ -37,6 +37,8 @@ const PORT = process.env.PORT || 4000;
 const rooms = new Map();
 // Pending disconnect timers: `${roomId}-${playerId}` -> Timeout
 const disconnectTimers = new Map();
+// Authoritative Turn Timers: roomId -> Timeout (Prevents game from ever freezing/stucking)
+const turnTimers = new Map();
 
 // 4-digit numeric room code (e.g. 4829, 1054)
 function generateRoomCode() {
@@ -105,6 +107,102 @@ app.post('/api/rooms/create', (req, res) => {
   res.json({ roomId, room: newRoom });
 });
 
+// Authoritative Server Turn Timer: Prevents any match from ever freezing/stucking
+function startTurnTimer(room) {
+  if (!room || !room.gameState || room.gameState.winner || room.status !== 'playing') return;
+  const roomId = room.id;
+
+  if (turnTimers.has(roomId)) {
+    clearTimeout(turnTimers.get(roomId));
+    turnTimers.delete(roomId);
+  }
+
+  const currentTurnPlayer = room.gameState.players[room.gameState.currentTurnIndex];
+  if (!currentTurnPlayer) return;
+
+  // 16s for human players; 6s safety watchdog for bots
+  const timeoutMs = currentTurnPlayer.isBot ? 6000 : 16000;
+
+  const timer = setTimeout(() => {
+    turnTimers.delete(roomId);
+    if (!room || !room.gameState || room.gameState.winner || room.status !== 'playing') return;
+
+    const activePlayer = room.gameState.players[room.gameState.currentTurnIndex];
+    if (!activePlayer || activePlayer.id !== currentTurnPlayer.id) return;
+
+    console.log(`[TurnTimer] Auto-action triggered for ${activePlayer.name} in room ${roomId}`);
+
+    if (room.gameState.diceValue === null) {
+      // Auto-roll dice
+      const rollResult = rollDiceForCurrentPlayer(room.gameState);
+      if (!rollResult) {
+        passTurnToNextPlayer(room.gameState);
+        io.to(roomId).emit('turn-passed', { gameState: room.gameState });
+        startTurnTimer(room);
+        checkAndPlayBotTurn(room);
+        return;
+      }
+
+      io.to(roomId).emit('dice-rolled', {
+        rollResult,
+        gameState: room.gameState
+      });
+
+      if (rollResult.penalty || rollResult.movableTokenIds.length === 0) {
+        setTimeout(() => {
+          if (!room.gameState || room.gameState.winner) return;
+          passTurnToNextPlayer(room.gameState);
+          io.to(roomId).emit('turn-passed', { gameState: room.gameState });
+          startTurnTimer(room);
+          checkAndPlayBotTurn(room);
+        }, 550);
+      } else {
+        // Auto-move after brief delay
+        setTimeout(() => {
+          if (!room.gameState || room.gameState.winner) return;
+          const movable = rollResult.movableTokenIds;
+          const chosenId = movable.find(id => activePlayer.tokens.find(t => t.id === id && t.progress === -1)) ?? movable[0];
+          const success = moveToken(room.gameState, chosenId);
+          if (success) {
+            io.to(roomId).emit('token-moved', { gameState: room.gameState });
+            startTurnTimer(room);
+            checkAndPlayBotTurn(room);
+          } else {
+            passTurnToNextPlayer(room.gameState);
+            io.to(roomId).emit('turn-passed', { gameState: room.gameState });
+            startTurnTimer(room);
+            checkAndPlayBotTurn(room);
+          }
+        }, 900);
+      }
+    } else {
+      // Player had rolled but didn't pick token within timeout
+      const movable = room.gameState.movableTokenIds || [];
+      if (movable.length > 0) {
+        const chosenId = movable.find(id => activePlayer.tokens.find(t => t.id === id && t.progress === -1)) ?? movable[0];
+        const success = moveToken(room.gameState, chosenId);
+        if (success) {
+          io.to(roomId).emit('token-moved', { gameState: room.gameState });
+          startTurnTimer(room);
+          checkAndPlayBotTurn(room);
+        } else {
+          passTurnToNextPlayer(room.gameState);
+          io.to(roomId).emit('turn-passed', { gameState: room.gameState });
+          startTurnTimer(room);
+          checkAndPlayBotTurn(room);
+        }
+      } else {
+        passTurnToNextPlayer(room.gameState);
+        io.to(roomId).emit('turn-passed', { gameState: room.gameState });
+        startTurnTimer(room);
+        checkAndPlayBotTurn(room);
+      }
+    }
+  }, timeoutMs);
+
+  turnTimers.set(roomId, timer);
+}
+
 // Autonomous AI Bot turn logic
 function checkAndPlayBotTurn(room) {
   if (!room || !room.gameState || room.gameState.winner || room.status !== 'playing') return;
@@ -131,6 +229,7 @@ function checkAndPlayBotTurn(room) {
           if (!room.gameState || room.gameState.winner) return;
           passTurnToNextPlayer(room.gameState);
           io.to(room.id).emit('turn-passed', { gameState: room.gameState });
+          startTurnTimer(room);
           checkAndPlayBotTurn(room);
         }, 550);
       } else {
@@ -157,6 +256,12 @@ function checkAndPlayBotTurn(room) {
           const success = moveToken(room.gameState, chosenTokenId);
           if (success) {
             io.to(room.id).emit('token-moved', { gameState: room.gameState });
+            startTurnTimer(room);
+            checkAndPlayBotTurn(room);
+          } else {
+            passTurnToNextPlayer(room.gameState);
+            io.to(room.id).emit('turn-passed', { gameState: room.gameState });
+            startTurnTimer(room);
             checkAndPlayBotTurn(room);
           }
         }, 450);
@@ -299,6 +404,7 @@ io.on('connection', (socket) => {
     });
 
     io.to(roomId).emit('game-started', { gameState: room.gameState, room });
+    startTurnTimer(room);
     checkAndPlayBotTurn(room);
   });
 
@@ -376,8 +482,12 @@ io.on('connection', (socket) => {
         if (!room.gameState || room.gameState.winner) return;
         passTurnToNextPlayer(room.gameState);
         io.to(roomId).emit('turn-passed', { gameState: room.gameState });
+        startTurnTimer(room);
         checkAndPlayBotTurn(room);
       }, 550);
+    } else {
+      // Player rolled and has movable tokens -> give them 15s to pick a token before auto-moving
+      startTurnTimer(room);
     }
   });
 
@@ -394,6 +504,13 @@ io.on('connection', (socket) => {
     const success = moveToken(room.gameState, tokenId);
     if (success) {
       io.to(roomId).emit('token-moved', { gameState: room.gameState });
+      startTurnTimer(room);
+      checkAndPlayBotTurn(room);
+    } else {
+      // Safety: if token move was rejected, pass turn so the game never freezes
+      passTurnToNextPlayer(room.gameState);
+      io.to(roomId).emit('turn-passed', { gameState: room.gameState });
+      startTurnTimer(room);
       checkAndPlayBotTurn(room);
     }
   });
@@ -545,6 +662,10 @@ function handlePlayerDeparture(roomId, playerId, isImmediate = false) {
           color: remainingWinner.color
         };
         currentRoom.status = 'ended';
+        if (turnTimers.has(roomId)) {
+          clearTimeout(turnTimers.get(roomId));
+          turnTimers.delete(roomId);
+        }
 
         io.to(roomId).emit('game-ended', { gameState: currentRoom.gameState, winner: remainingWinner });
         io.to(roomId).emit('token-moved', { gameState: currentRoom.gameState });
@@ -557,6 +678,7 @@ function handlePlayerDeparture(roomId, playerId, isImmediate = false) {
       if (currentTurnPlayer?.id === playerId) {
         passTurnToNextPlayer(currentRoom.gameState);
         io.to(roomId).emit('turn-passed', { gameState: currentRoom.gameState });
+        startTurnTimer(currentRoom);
         checkAndPlayBotTurn(currentRoom);
       }
     }

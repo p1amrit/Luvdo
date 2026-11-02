@@ -52,27 +52,34 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
   // Track previous progress and active hop
   const prevProgressRef = useRef<Record<string, number>>({});
   const [hoppingToken, setHoppingToken] = useState<{ key: string; step: number; isRewind?: boolean } | null>(null);
-  const activeTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const tokenTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>[]>>({});
 
   // Step-by-step walking & reverse rewinding kill animation runner
   useEffect(() => {
-    // Clear any previous running timers
-    activeTimersRef.current.forEach(t => clearTimeout(t));
-    activeTimersRef.current = [];
-
     gameState.players.forEach(player => {
       player.tokens.forEach(token => {
         const key = `${player.color}-${token.id}`;
         const prevProg = prevProgressRef.current[key];
         const targetProg = token.progress;
 
-        // Remember current progress for next transition
+        // If progress didn't change, do not interrupt any ongoing animation
+        if (prevProg === targetProg) return;
+
+        // Progress changed -> update stored progress
         prevProgressRef.current[key] = targetProg;
 
+        // Clear only this token's previous running timers
+        if (tokenTimersRef.current[key]) {
+          tokenTimersRef.current[key].forEach(t => clearTimeout(t));
+          tokenTimersRef.current[key] = [];
+        }
+
         if (prevProg !== undefined && targetProg > prevProg && prevProg >= 0) {
-          // Walking forward step-by-step (fast & responsive 75-80ms per step)
+          // Walking forward step-by-step (silky-smooth 105ms pace with clean easing)
           const stepsCount = targetProg - prevProg;
-          const stepSpeed = Math.max(55, Math.min(80, Math.floor(420 / stepsCount)));
+          const stepSpeed = 105;
+          const timers: ReturnType<typeof setTimeout>[] = [];
+
           for (let step = 1; step <= stepsCount; step++) {
             const nextVal = prevProg + step;
             const timer = setTimeout(() => {
@@ -80,18 +87,20 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
               sounds.playTokenStep(step);
 
               if (step === stepsCount) {
-                setTimeout(() => setHoppingToken(null), 90);
+                setTimeout(() => setHoppingToken(null), 100);
               }
             }, (step - 1) * stepSpeed);
-            activeTimersRef.current.push(timer);
+            timers.push(timer);
           }
+          tokenTimersRef.current[key] = timers;
         } else if (prevProg !== undefined && targetProg === 0 && prevProg === -1) {
           // Token spawned from base onto track
           sounds.playTokenStep();
         } else if (prevProg !== undefined && targetProg === -1 && prevProg >= 0) {
-          // Token captured/killed: rapid rewind backwards along the exact track it took!
+          // Token captured/killed: rapid rewind backwards along the track
           const rewindStepsCount = prevProg + 1;
-          const rewindSpeed = Math.max(22, Math.min(45, Math.floor(600 / rewindStepsCount)));
+          const rewindSpeed = Math.max(25, Math.min(45, Math.floor(500 / rewindStepsCount)));
+          const timers: ReturnType<typeof setTimeout>[] = [];
 
           for (let s = 1; s <= rewindStepsCount; s++) {
             const rewindVal = (s === rewindStepsCount) ? -1 : prevProg - s;
@@ -104,15 +113,12 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
                 setTimeout(() => setHoppingToken(null), 120);
               }
             }, (s - 1) * rewindSpeed);
-            activeTimersRef.current.push(timer);
+            timers.push(timer);
           }
+          tokenTimersRef.current[key] = timers;
         }
       });
     });
-
-    return () => {
-      activeTimersRef.current.forEach(t => clearTimeout(t));
-    };
   }, [gameState]);
 
   // Map every token to its current grid row & col coordinate based on animated progress
@@ -569,7 +575,9 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
                 transition={
                   isRewinding
                     ? { duration: 0.045, ease: 'linear' }
-                    : { type: 'spring', stiffness: 550, damping: 25 }
+                    : isHopping
+                    ? { duration: 0.105, ease: 'easeInOut' }
+                    : { type: 'spring', stiffness: 420, damping: 28 }
                 }
                 style={{
                   gridRowStart: item.coord.r + 1,
@@ -579,10 +587,10 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
                   isRewinding
                     ? { scale: 1.15, rotate: -360, y: -6, x: 0 }
                     : isHopping
-                    ? { scale: [1, 1.25, 1], y: [0, -8, 0], x: 0, rotate: 0 }
+                    ? { scale: 1.18, y: -7, x: 0, rotate: 0 }
                     : isSelectedMovable
                     ? {
-                        scale: [clusterScale, clusterScale * 1.18, clusterScale],
+                        scale: [clusterScale, clusterScale * 1.16, clusterScale],
                         y: [clusterY, clusterY - 3, clusterY],
                         x: clusterX,
                         rotate: 0
