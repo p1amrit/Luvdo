@@ -69,6 +69,74 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
     shadow: HTMLDivElement;
   }>>(new Map());
 
+  // Map every token to its current grid row & col coordinate
+  const placedTokens: Array<{
+    playerColor: PlayerColor;
+    playerId: string;
+    token: Token;
+    coord: GridCoord;
+    isMovable: boolean;
+  }> = [];
+
+  gameState.players.forEach(player => {
+    player.tokens.forEach((token) => {
+      const coord = getCoordForProgress(player.color, token.progress, token.id);
+      const isMovable = isMyTurn && player.id === myPlayerId && movableTokenIds.includes(token.id);
+
+      placedTokens.push({
+        playerColor: player.color,
+        playerId: player.id,
+        token,
+        coord,
+        isMovable
+      });
+    });
+  });
+
+  // Group tokens by coordinate on the track so multiple tokens never obscure each other
+  const cellTokensMap = useMemo(() => {
+    const map = new Map<string, typeof placedTokens>();
+    placedTokens.forEach((t) => {
+      // In base yard (progress === -1), tokens have their own independent slots and do NOT cluster
+      if (t.token.progress === -1) return;
+      const cellKey = `${t.coord.r}-${t.coord.c}`;
+      if (!map.has(cellKey)) {
+        map.set(cellKey, []);
+      }
+      map.get(cellKey)!.push(t);
+    });
+    return map;
+  }, [placedTokens]);
+
+  // Compute multi-token separation offsets so all tokens on the same tile/stump are 100% visible
+  const getClusterOffset = (color: PlayerColor, tokenId: number, prog: number, coord: GridCoord) => {
+    if (prog === -1) {
+      return { x: 0, y: 0, scale: 1 };
+    }
+    const cellKey = `${coord.r}-${coord.c}`;
+    const cellGroup = cellTokensMap.get(cellKey) || [];
+    const count = cellGroup.length;
+    const idx = cellGroup.findIndex(t => t.playerColor === color && t.token.id === tokenId);
+
+    if (count === 2) {
+      return {
+        x: idx === 0 ? -6.5 : 6.5,
+        y: 0,
+        scale: 0.82
+      };
+    } else if (count === 3) {
+      if (idx === 0) return { x: -6.5, y: -5, scale: 0.72 };
+      if (idx === 1) return { x: 6.5, y: -5, scale: 0.72 };
+      return { x: 0, y: 5.5, scale: 0.72 };
+    } else if (count >= 4) {
+      if (idx === 0) return { x: -6, y: -6, scale: 0.64 };
+      if (idx === 1) return { x: 6, y: -6, scale: 0.64 };
+      if (idx === 2) return { x: -6, y: 6, scale: 0.64 };
+      return { x: 6, y: 6, scale: 0.64 };
+    }
+    return { x: 0, y: 0, scale: 1 };
+  };
+
   // 1. Cleanup ONLY on component unmount (NEVER on gameState updates!)
   useEffect(() => {
     return () => {
@@ -101,28 +169,28 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
         const key = `${player.color}-${token.id}`;
         const prevProg = prevProgressRef.current[key];
         const targetProg = token.progress;
+        const currentCoord = getCoordForProgress(player.color, targetProg, token.id);
+        const cluster = getClusterOffset(player.color, token.id, targetProg, currentCoord);
 
         // On first mount, record position without playing animations
         if (prevProg === undefined) {
           prevProgressRef.current[key] = targetProg;
           const el = tokenNodesRef.current.get(key);
           if (el) {
-            const initialCoord = getCoordForProgress(player.color, targetProg, token.id);
-            el.root.style.transform = `translate3d(${initialCoord.c * 100}%, ${initialCoord.r * 100}%, 0)`;
-            el.pawn.style.transform = `translate3d(0px, 0px, 0) scale(1) rotate(-${boardRotation}deg)`;
+            el.root.style.transform = `translate3d(${currentCoord.c * 100}%, ${currentCoord.r * 100}%, 0)`;
+            el.pawn.style.transform = `translate3d(${cluster.x}px, ${cluster.y}px, 0) scale(${cluster.scale}) rotate(-${boardRotation}deg)`;
           }
           return;
         }
 
         // If progress didn't change:
-        // If this token is NOT currently mid-animation, ensure it is firmly snapped to its authoritative position!
+        // If this token is NOT currently mid-animation, ensure its position & cluster offset are visible!
         if (prevProg === targetProg) {
           if (!activeRafRef.current[key]) {
             const el = tokenNodesRef.current.get(key);
             if (el) {
-              const currentCoord = getCoordForProgress(player.color, targetProg, token.id);
               el.root.style.transform = `translate3d(${currentCoord.c * 100}%, ${currentCoord.r * 100}%, 0)`;
-              el.pawn.style.transform = `translate3d(0px, 0px, 0) scale(1) rotate(-${boardRotation}deg)`;
+              el.pawn.style.transform = `translate3d(${cluster.x}px, ${cluster.y}px, 0) scale(${cluster.scale}) rotate(-${boardRotation}deg)`;
               el.shadow.style.transform = 'scale(1)';
               el.shadow.style.opacity = '0.65';
             }
@@ -200,8 +268,9 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
             } else {
               delete activeRafRef.current[key];
               const finalCoord = waypoints[waypoints.length - 1];
+              const finalCluster = getClusterOffset(player.color, token.id, targetProg, finalCoord);
               currentEl.root.style.transform = `translate3d(${finalCoord.c * 100}%, ${finalCoord.r * 100}%, 0)`;
-              currentEl.pawn.style.transform = `translate3d(0px, 0px, 0) scale(1) rotate(-${boardRotation}deg)`;
+              currentEl.pawn.style.transform = `translate3d(${finalCluster.x}px, ${finalCluster.y}px, 0) scale(${finalCluster.scale}) rotate(-${boardRotation}deg)`;
               currentEl.shadow.style.transform = 'scale(1)';
               currentEl.shadow.style.opacity = '0.65';
 
@@ -248,8 +317,9 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
               activeRafRef.current[key] = requestAnimationFrame(animateSpawn);
             } else {
               delete activeRafRef.current[key];
+              const finalCluster = getClusterOffset(player.color, token.id, 0, to);
               currentEl.root.style.transform = `translate3d(${to.c * 100}%, ${to.r * 100}%, 0)`;
-              currentEl.pawn.style.transform = `translate3d(0px, 0px, 0) scale(1) rotate(-${boardRotation}deg)`;
+              currentEl.pawn.style.transform = `translate3d(${finalCluster.x}px, ${finalCluster.y}px, 0) scale(${finalCluster.scale}) rotate(-${boardRotation}deg)`;
             }
           };
 
@@ -321,31 +391,7 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
         }
       });
     });
-  }, [gameState, boardRotation]);
-
-  // Map every token to its current grid row & col coordinate
-  const placedTokens: Array<{
-    playerColor: PlayerColor;
-    playerId: string;
-    token: Token;
-    coord: GridCoord;
-    isMovable: boolean;
-  }> = [];
-
-  gameState.players.forEach(player => {
-    player.tokens.forEach((token) => {
-      const coord = getCoordForProgress(player.color, token.progress, token.id);
-      const isMovable = isMyTurn && player.id === myPlayerId && movableTokenIds.includes(token.id);
-
-      placedTokens.push({
-        playerColor: player.color,
-        playerId: player.id,
-        token,
-        coord,
-        isMovable
-      });
-    });
-  });
+  }, [gameState, boardRotation, cellTokensMap]);
 
   const handleBoardClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (onScreenTouch) {
@@ -556,21 +602,6 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
     );
   }, [boardRotation, !!rosePlayer, !!lavenderPlayer, !!peachPlayer, !!mintPlayer]);
 
-  // Group tokens by coordinate on the track (never in the yard!)
-  const cellTokensMap = useMemo(() => {
-    const map = new Map<string, typeof placedTokens>();
-    placedTokens.forEach((t) => {
-      // In base yard (progress === -1), tokens have their own independent slots and do NOT cluster
-      if (t.token.progress === -1) return;
-      const cellKey = `${t.coord.r}-${t.coord.c}`;
-      if (!map.has(cellKey)) {
-        map.set(cellKey, []);
-      }
-      map.get(cellKey)!.push(t);
-    });
-    return map;
-  }, [placedTokens]);
-
   return (
     <div
       onClick={handleBoardClick}
@@ -593,51 +624,7 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
             const key = `${item.playerColor}-${item.token.id}`;
             const colorCfg = COLOR_STYLES[item.playerColor];
             const isSelectedMovable = item.isMovable;
-            const isBase = item.token.progress === -1;
-
-            const cellKey = `${item.coord.r}-${item.coord.c}`;
-            const cellGroup = isBase ? [item] : (cellTokensMap.get(cellKey) || [item]);
-            const clusterCount = cellGroup.length;
-            const clusterIndex = cellGroup.indexOf(item);
-
-            let clusterX = 0;
-            let clusterY = 0;
-            let clusterScale = 1;
-
-            if (!isBase) {
-              if (clusterCount === 2) {
-                clusterScale = 0.82;
-                clusterX = clusterIndex === 0 ? -6 : 6;
-                clusterY = 0;
-              } else if (clusterCount === 3) {
-                clusterScale = 0.72;
-                if (clusterIndex === 0) {
-                  clusterX = -6;
-                  clusterY = -5;
-                } else if (clusterIndex === 1) {
-                  clusterX = 6;
-                  clusterY = -5;
-                } else {
-                  clusterX = 0;
-                  clusterY = 5;
-                }
-              } else if (clusterCount >= 4) {
-                clusterScale = 0.65;
-                if (clusterIndex === 0) {
-                  clusterX = -5.5;
-                  clusterY = -5.5;
-                } else if (clusterIndex === 1) {
-                  clusterX = 5.5;
-                  clusterY = -5.5;
-                } else if (clusterIndex === 2) {
-                  clusterX = -5.5;
-                  clusterY = 5.5;
-                } else {
-                  clusterX = 5.5;
-                  clusterY = 5.5;
-                }
-              }
-            }
+            const cluster = getClusterOffset(item.playerColor, item.token.id, item.token.progress, item.coord);
 
             return (
               <div
@@ -666,15 +653,16 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
                   isSelectedMovable ? 'z-40 pointer-events-auto' : 'z-30 pointer-events-none'
                 }`}
               >
-                {/* Inner Tactile Pawn: Hardware Accelerated Transform Arc */}
+                {/* Inner Tactile Pawn: Hardware Accelerated Transform Arc with Multi-Token Visibility */}
                 <div
                   className={`pawn-body relative flex items-center justify-center ${
                     isSelectedMovable ? 'cursor-pointer' : ''
                   }`}
                   style={{
-                    transform: `translate3d(${clusterX}px, ${clusterY}px, 0) scale(${
-                      isSelectedMovable ? clusterScale * 1.08 : clusterScale
+                    transform: `translate3d(${cluster.x}px, ${cluster.y}px, 0) scale(${
+                      isSelectedMovable ? cluster.scale * 1.08 : cluster.scale
                     }) rotate(-${boardRotation}deg)`,
+                    transition: 'transform 0.2s cubic-bezier(0.25, 1, 0.5, 1)',
                     willChange: 'transform'
                   }}
                   onClick={(e) => {
