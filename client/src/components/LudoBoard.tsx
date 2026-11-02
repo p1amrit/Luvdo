@@ -65,7 +65,7 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
   const [animTokens, setAnimTokens] = useState<Record<string, { step: number; isRewind?: boolean }>>({});
   const tokenTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>[]>>({});
 
-  // Authentic Ludo King Animation Engine: forward stepping + delayed sequential kill rewind
+  // 60FPS Hardware-Accelerated Motion Engine: forward stepping + delayed sequential kill rewind
   useEffect(() => {
     // 1. Detect any moving attacker in this state update to sync capture strike impact
     let maxAttackerDuration = 0;
@@ -75,7 +75,7 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
         const prev = prevProgressRef.current[k];
         if (prev !== undefined && t.progress > prev && prev >= 0) {
           const steps = t.progress - prev;
-          const dur = steps * 105;
+          const dur = steps * 120;
           if (dur > maxAttackerDuration) maxAttackerDuration = dur;
         }
       });
@@ -104,9 +104,9 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
         tokenTimersRef.current[key] = timers;
 
         if (prevProg !== undefined && targetProg > prevProg && prevProg >= 0) {
-          // Walking forward step-by-step (silky-smooth 105ms pace with clean easing)
+          // Walking forward step-by-step (silky-smooth 120ms pace with GPU acceleration)
           const stepsCount = targetProg - prevProg;
-          const stepSpeed = 105;
+          const stepSpeed = 120;
 
           for (let step = 1; step <= stepsCount; step++) {
             const nextVal = prevProg + step;
@@ -146,7 +146,7 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
           // Wait for attacker to land -> play capture pop -> rewind backwards step-by-step to home slot
           const impactDelay = maxAttackerDuration > 0 ? maxAttackerDuration : 0;
           const rewindStepsCount = prevProg + 1; // from prevProg down to -1
-          const rewindSpeed = Math.max(22, Math.min(38, Math.floor(450 / rewindStepsCount)));
+          const rewindSpeed = Math.max(22, Math.min(32, Math.floor(400 / rewindStepsCount)));
 
           // Hold the victim token at its killed position until attacker arrives
           setAnimTokens(prev => ({
@@ -449,148 +449,165 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
           ));
         })}
 
-        {/* Tokens Overlay with Fast Hopping, Safe Stump Multi-Token Clustering, & Kill Rewind */}
-        {(() => {
-          // Group tokens by coordinate so multiple tokens on the same safe stump or tile never obscure each other
-          const cellTokensMap = new Map<string, typeof placedTokens>();
-          placedTokens.forEach((t) => {
-            const cellKey = `${t.coord.r}-${t.coord.c}`;
-            if (!cellTokensMap.has(cellKey)) {
-              cellTokensMap.set(cellKey, []);
-            }
-            cellTokensMap.get(cellKey)!.push(t);
-          });
+        {/* Hardware-Accelerated 60fps Pawn Layer (GPU translate3d with parabolic hop & tactile shadow) */}
+        <div className="absolute inset-1 pointer-events-none z-30">
+          {(() => {
+            // Group tokens by coordinate so multiple tokens on the same safe stump or tile never obscure each other
+            const cellTokensMap = new Map<string, typeof placedTokens>();
+            placedTokens.forEach((t) => {
+              const cellKey = `${t.coord.r}-${t.coord.c}`;
+              if (!cellTokensMap.has(cellKey)) {
+                cellTokensMap.set(cellKey, []);
+              }
+              cellTokensMap.get(cellKey)!.push(t);
+            });
 
-          return placedTokens.map((item) => {
-            const colorCfg = COLOR_STYLES[item.playerColor];
-            const isSelectedMovable = item.isMovable;
-            const isHopping = item.isHopping;
-            const isRewinding = item.isRewinding;
+            return placedTokens.map((item) => {
+              const colorCfg = COLOR_STYLES[item.playerColor];
+              const isSelectedMovable = item.isMovable;
+              const isHopping = item.isHopping;
+              const isRewinding = item.isRewinding;
 
-            const cellKey = `${item.coord.r}-${item.coord.c}`;
-            const cellGroup = cellTokensMap.get(cellKey) || [item];
-            const clusterCount = cellGroup.length;
-            const clusterIndex = cellGroup.indexOf(item);
+              const cellKey = `${item.coord.r}-${item.coord.c}`;
+              const cellGroup = cellTokensMap.get(cellKey) || [item];
+              const clusterCount = cellGroup.length;
+              const clusterIndex = cellGroup.indexOf(item);
 
-            // Compute cluster offset & scale when multiple tokens occupy the same cell
-            let clusterX = 0;
-            let clusterY = 0;
-            let clusterScale = 1;
+              let clusterX = 0;
+              let clusterY = 0;
+              let clusterScale = 1;
 
-            if (clusterCount === 2) {
-              clusterScale = 0.82;
-              // Clean side-by-side standing tokens matching Ludo King
-              if (clusterIndex === 0) {
-                clusterX = -6;
+              if (clusterCount === 2) {
+                clusterScale = 0.82;
+                clusterX = clusterIndex === 0 ? -6 : 6;
                 clusterY = 0;
-              } else {
-                clusterX = 6;
-                clusterY = 0;
+              } else if (clusterCount === 3) {
+                clusterScale = 0.72;
+                if (clusterIndex === 0) {
+                  clusterX = -6;
+                  clusterY = -5;
+                } else if (clusterIndex === 1) {
+                  clusterX = 6;
+                  clusterY = -5;
+                } else {
+                  clusterX = 0;
+                  clusterY = 5;
+                }
+              } else if (clusterCount >= 4) {
+                clusterScale = 0.65;
+                if (clusterIndex === 0) {
+                  clusterX = -5.5;
+                  clusterY = -5.5;
+                } else if (clusterIndex === 1) {
+                  clusterX = 5.5;
+                  clusterY = -5.5;
+                } else if (clusterIndex === 2) {
+                  clusterX = -5.5;
+                  clusterY = 5.5;
+                } else {
+                  clusterX = 5.5;
+                  clusterY = 5.5;
+                }
               }
-            } else if (clusterCount === 3) {
-              clusterScale = 0.72;
-              if (clusterIndex === 0) {
-                clusterX = -6;
-                clusterY = -5;
-              } else if (clusterIndex === 1) {
-                clusterX = 6;
-                clusterY = -5;
-              } else {
-                clusterX = 0;
-                clusterY = 5;
-              }
-            } else if (clusterCount >= 4) {
-              clusterScale = 0.65;
-              if (clusterIndex === 0) {
-                clusterX = -5.5;
-                clusterY = -5.5;
-              } else if (clusterIndex === 1) {
-                clusterX = 5.5;
-                clusterY = -5.5;
-              } else if (clusterIndex === 2) {
-                clusterX = -5.5;
-                clusterY = 5.5;
-              } else {
-                clusterX = 5.5;
-                clusterY = 5.5;
-              }
-            }
 
-            return (
-              <motion.div
-                key={`token-${item.playerColor}-${item.token.id}`}
-                layout
-                transition={
-                  isRewinding
-                    ? { duration: 0.038, ease: 'linear' }
-                    : isHopping
-                    ? { duration: 0.105, ease: 'easeInOut' }
-                    : { type: 'spring', stiffness: 420, damping: 28 }
-                }
-                style={{
-                  gridRowStart: item.coord.r + 1,
-                  gridColumnStart: item.coord.c + 1
-                }}
-                animate={
-                  isRewinding
-                    ? { scale: 1.15, rotate: -boardRotation - 360, y: -6, x: 0 }
-                    : isHopping
-                    ? { scale: 1.18, y: -7, x: 0, rotate: -boardRotation }
-                    : isSelectedMovable
-                    ? {
-                        scale: [clusterScale, clusterScale * 1.16, clusterScale],
-                        y: [clusterY, clusterY - 3, clusterY],
-                        x: clusterX,
-                        rotate: -boardRotation
-                      }
-                    : {
-                        scale: clusterScale,
-                        x: clusterX,
-                        y: clusterY,
-                        rotate: -boardRotation,
-                        opacity: 1
-                      }
-                }
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (isSelectedMovable) {
-                    sounds.playTokenStep();
-                    onSelectToken(item.token.id);
+              return (
+                <motion.div
+                  key={`token-${item.playerColor}-${item.token.id}`}
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '6.6667%',
+                    height: '6.6667%',
+                    willChange: 'transform'
+                  }}
+                  animate={{
+                    x: `${item.coord.c * 100}%`,
+                    y: `${item.coord.r * 100}%`
+                  }}
+                  transition={
+                    isRewinding
+                      ? { duration: 0.028, ease: 'linear' }
+                      : isHopping
+                      ? { duration: 0.118, ease: [0.25, 0.1, 0.25, 1] }
+                      : { type: 'spring', stiffness: 500, damping: 32 }
                   }
-                }}
-                className={`${
-                  isSelectedMovable ? 'z-40' : 'z-30'
-                } w-full h-full flex items-center justify-center touch-manipulation active:scale-90 transition-transform ${
-                  isSelectedMovable ? 'cursor-pointer hover:scale-105' : 'pointer-events-none'
-                }`}
-              >
-                <div
-                  className={`relative w-5 h-5 sm:w-7 sm:h-7 rounded-full flex items-center justify-center border sm:border-2 border-white shadow-md transition-transform active:scale-95 ${
-                    colorCfg.tokenBg
-                  } ${
-                    isSelectedMovable
-                      ? 'ring-2 ring-white/90 ring-offset-1 ring-offset-slate-900 shadow-[0_0_10px_rgba(255,255,255,0.9)]'
-                      : ''
+                  className={`flex items-center justify-center ${
+                    isSelectedMovable ? 'z-40 pointer-events-auto' : 'z-30 pointer-events-none'
                   }`}
                 >
-                  {/* Expanded touch target for effortless tapping on mobile */}
-                  {isSelectedMovable && (
-                    <div className="absolute -inset-3 sm:-inset-2 rounded-full cursor-pointer -z-10" />
-                  )}
+                  {/* Inner Tactile Pawn: Parabolic Bounce Arc + Drop Shadow + Counter-Rotation */}
+                  <motion.div
+                    animate={{
+                      x: clusterX,
+                      y: isHopping ? -10 : clusterY,
+                      scale: isHopping
+                        ? 1.2
+                        : isSelectedMovable
+                        ? [clusterScale, clusterScale * 1.15, clusterScale]
+                        : clusterScale,
+                      rotate: isRewinding ? -boardRotation - 360 : -boardRotation
+                    }}
+                    transition={
+                      isHopping
+                        ? {
+                            y: { duration: 0.118, ease: [0.33, 1, 0.68, 1] },
+                            scale: { duration: 0.118 }
+                          }
+                        : isSelectedMovable
+                        ? {
+                            scale: { repeat: Infinity, duration: 1.2, ease: 'easeInOut' }
+                          }
+                        : { duration: 0.2, ease: 'easeOut' }
+                    }
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (isSelectedMovable) {
+                        sounds.playTokenStep();
+                        onSelectToken(item.token.id);
+                      }
+                    }}
+                    className={`relative flex items-center justify-center ${
+                      isSelectedMovable ? 'cursor-pointer' : ''
+                    }`}
+                  >
+                    {/* Dynamic 3D Ground Drop Shadow */}
+                    <div
+                      className={`absolute -bottom-1 w-5 h-1.5 sm:w-6 sm:h-2 rounded-full bg-black/60 blur-[2px] transition-all pointer-events-none ${
+                        isHopping ? 'scale-75 opacity-30 -translate-y-1' : 'scale-100 opacity-70'
+                      }`}
+                    />
 
-                  <span className="text-[9px] sm:text-xs font-bold leading-none select-none">
-                    {colorCfg.emoji}
-                  </span>
+                    {/* Glossy Beveled Token Pawn */}
+                    <div
+                      className={`relative w-5 h-5 sm:w-7 sm:h-7 rounded-full flex items-center justify-center border sm:border-2 border-white shadow-md transition-transform active:scale-95 ${
+                        colorCfg.tokenBg
+                      } ${
+                        isSelectedMovable
+                          ? 'ring-2 ring-white/90 ring-offset-1 ring-offset-slate-900 shadow-[0_0_12px_rgba(255,255,255,0.95)]'
+                          : ''
+                      }`}
+                    >
+                      {/* Touch Target Expander for Mobile Ease */}
+                      {isSelectedMovable && (
+                        <div className="absolute -inset-3 sm:-inset-2 rounded-full cursor-pointer -z-10" />
+                      )}
 
-                  {/* Subtle indicator dot on eligible token */}
-                  {isSelectedMovable && (
-                    <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-emerald-400 border border-slate-900" />
-                  )}
-                </div>
-              </motion.div>
-            );
-          });
-        })()}
+                      <span className="text-[9px] sm:text-xs font-bold leading-none select-none">
+                        {colorCfg.emoji}
+                      </span>
+
+                      {/* Moving pulse indicator dot */}
+                      {isSelectedMovable && (
+                        <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-emerald-400 border border-slate-900 animate-pulse" />
+                      )}
+                    </div>
+                  </motion.div>
+                </motion.div>
+              );
+            });
+          })()}
+        </div>
 
       </div>
     </div>
