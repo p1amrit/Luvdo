@@ -220,37 +220,30 @@ class SoundManager {
     osc.stop(now + 0.09);
   }
 
-  // Gentle token step chime (crystal kalimba)
+  // Gentle token step chime (crystal kalimba, ultra-lightweight zero-vibration for 60fps)
   public playTokenStep(pitchOffset = 0) {
     if (this.isMuted) return;
     this.initContext();
     const ctx = this.ctx;
     if (!ctx) return;
 
-    if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
-      try {
-        navigator.vibrate(12);
-      } catch {
-        // ignore
-      }
-    }
-
+    const now = ctx.currentTime;
     const baseFreq = 523.25 * Math.pow(2, pitchOffset / 12);
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
 
     osc.type = 'sine';
-    osc.frequency.setValueAtTime(baseFreq, ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(baseFreq * 0.98, ctx.currentTime + 0.18);
+    osc.frequency.setValueAtTime(baseFreq, now);
+    osc.frequency.exponentialRampToValueAtTime(baseFreq * 0.96, now + 0.06);
 
-    gain.gain.setValueAtTime(0.2, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
+    gain.gain.setValueAtTime(0.14, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
 
     osc.connect(gain);
     gain.connect(ctx.destination);
 
-    osc.start();
-    osc.stop(ctx.currentTime + 0.2);
+    osc.start(now);
+    osc.stop(now + 0.06);
   }
 
   // Cute kiss / affection pop sound

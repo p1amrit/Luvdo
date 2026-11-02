@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useEffect, useRef, useMemo } from 'react';
 import { GameState, PlayerColor, Token } from '../types/game';
 import {
   MAIN_TRACK_COORDS,
@@ -59,10 +59,18 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
 
   // Track previous progress and independent per-token animation states
   const prevProgressRef = useRef<Record<string, number>>({});
-  const [animTokens, setAnimTokens] = useState<Record<string, { step: number; isRewind?: boolean }>>({});
-  const tokenTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>[]>>({});
+  const activeRafRef = useRef<Record<string, number>>({});
+  const activeTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>[]>>({});
 
-  // 60FPS Hardware-Accelerated Motion Engine: forward stepping + delayed sequential kill rewind
+  // Direct DOM references for 60FPS/120FPS hardware-accelerated RAF transforms
+  const tokenNodesRef = useRef<Map<string, {
+    root: HTMLDivElement;
+    pawn: HTMLDivElement;
+    shadow: HTMLDivElement;
+  }>>(new Map());
+
+  // 60FPS / 120FPS Native RAF Parabolic Motion Engine
+  // ZERO React re-renders during motion. Every frame computed at native display refresh rate.
   useEffect(() => {
     // 1. Detect any moving attacker in this state update to sync capture strike impact
     let maxAttackerDuration = 0;
@@ -72,7 +80,7 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
         const prev = prevProgressRef.current[k];
         if (prev !== undefined && t.progress > prev && prev >= 0) {
           const steps = t.progress - prev;
-          const dur = steps * 118;
+          const dur = steps * 125;
           if (dur > maxAttackerDuration) maxAttackerDuration = dur;
         }
       });
@@ -85,136 +93,229 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
         const prevProg = prevProgressRef.current[key];
         const targetProg = token.progress;
 
+        // On first mount, record position without playing animations
+        if (prevProg === undefined) {
+          prevProgressRef.current[key] = targetProg;
+          return;
+        }
+
         // If progress didn't change, do not disturb ongoing animations
         if (prevProg === targetProg) return;
 
         // Progress changed -> update stored progress
         prevProgressRef.current[key] = targetProg;
 
-        // Clear only this token's previous running timers
-        if (tokenTimersRef.current[key]) {
-          tokenTimersRef.current[key].forEach(t => clearTimeout(t));
-          tokenTimersRef.current[key] = [];
+        // Cancel any active RAF for this token
+        if (activeRafRef.current[key]) {
+          cancelAnimationFrame(activeRafRef.current[key]);
+          delete activeRafRef.current[key];
         }
 
-        const timers: ReturnType<typeof setTimeout>[] = [];
-        tokenTimersRef.current[key] = timers;
+        // Clear any pending timers for this token
+        if (activeTimersRef.current[key]) {
+          activeTimersRef.current[key].forEach(t => clearTimeout(t));
+          activeTimersRef.current[key] = [];
+        } else {
+          activeTimersRef.current[key] = [];
+        }
 
-        if (prevProg !== undefined && targetProg > prevProg && prevProg >= 0) {
-          // Walking forward step-by-step (silky-smooth 118ms pace with GPU acceleration)
-          const stepsCount = targetProg - prevProg;
-          const stepSpeed = 118;
+        const node = tokenNodesRef.current.get(key);
 
-          for (let step = 1; step <= stepsCount; step++) {
-            const nextVal = prevProg + step;
-            const timer = setTimeout(() => {
-              setAnimTokens(prev => ({
-                ...prev,
-                [key]: { step: nextVal, isRewind: false }
-              }));
-              sounds.playTokenStep(step);
-
-              if (step === stepsCount) {
-                if (targetProg === 56) {
-                  sounds.playHomeArrival();
-                } else if (targetProg >= 0 && targetProg <= 50) {
-                  const startIndices: Record<string, number> = { rose: 0, lavender: 13, peach: 26, mint: 39 };
-                  const tileIdx = ((startIndices[player.color] ?? 0) + targetProg) % 52;
-                  if ([0, 8, 13, 21, 26, 34, 39, 47].includes(tileIdx)) {
-                    sounds.playSafeLanding();
-                  }
-                }
-                setTimeout(() => {
-                  setAnimTokens(prev => {
-                    const copy = { ...prev };
-                    delete copy[key];
-                    return copy;
-                  });
-                }, 90);
-              }
-            }, (step - 1) * stepSpeed);
-            timers.push(timer);
+        // CASE A: Forward walking (Silky-smooth continuous parabolic hopping at 60/120 FPS)
+        if (targetProg > prevProg && prevProg >= 0) {
+          const waypoints: GridCoord[] = [];
+          for (let p = prevProg; p <= targetProg; p++) {
+            waypoints.push(getCoordForProgress(player.color, p, token.id));
           }
-        } else if (prevProg !== undefined && targetProg === 0 && prevProg === -1) {
-          // Token spawned from base onto track
-          sounds.playTokenSpawn();
-        } else if (prevProg !== undefined && targetProg === -1 && prevProg >= 0) {
-          // Token captured / killed:
-          // Wait for attacker to land -> play capture pop -> rewind backwards step-by-step to home slot
-          const impactDelay = maxAttackerDuration > 0 ? maxAttackerDuration : 0;
-          const rewindStepsCount = prevProg + 1; // from prevProg down to -1
-          const rewindSpeed = Math.max(20, Math.min(30, Math.floor(400 / rewindStepsCount)));
 
-          // Hold the victim token at its killed position until attacker arrives
-          setAnimTokens(prev => ({
-            ...prev,
-            [key]: { step: prevProg, isRewind: false }
-          }));
+          const stepsCount = waypoints.length - 1;
+          const hopDuration = 125; // 125ms per hop matches Ludo King physics perfectly
+          const totalDuration = stepsCount * hopDuration;
+          const startTime = performance.now();
+          let lastStepSound = 0;
+
+          const animateForward = (now: number) => {
+            const currentEl = tokenNodesRef.current.get(key);
+            if (!currentEl) return;
+
+            const elapsed = now - startTime;
+            const progressRatio = Math.min(1.0, elapsed / totalDuration);
+            const totalHopProgress = progressRatio * stepsCount;
+            const currentHop = Math.min(stepsCount - 1, Math.floor(totalHopProgress));
+            const subT = totalHopProgress - currentHop; // 0.0 to 1.0 within this specific hop
+
+            const from = waypoints[currentHop];
+            const to = waypoints[currentHop + 1];
+
+            // Linear position interpolation between tile centers
+            const c = from.c + (to.c - from.c) * subT;
+            const r = from.r + (to.r - from.r) * subT;
+
+            // Parabolic vertical jump arc (height reaches 13px at subT = 0.5, lands at 0px)
+            const arc = 4 * subT * (1 - subT);
+            const hopY = arc * 13;
+
+            // Sound on touchdown
+            if (currentHop + 1 > lastStepSound && subT >= 0.85) {
+              lastStepSound = currentHop + 1;
+              sounds.playTokenStep(lastStepSound);
+            }
+
+            // Direct GPU transform on compositor thread
+            currentEl.root.style.transform = `translate3d(${c * 100}%, ${r * 100}%, 0)`;
+            currentEl.pawn.style.transform = `translate3d(0px, ${-hopY}px, 0) scale(${1 + arc * 0.12}) rotate(-${boardRotation}deg)`;
+            currentEl.shadow.style.transform = `scale(${1 - arc * 0.28})`;
+            currentEl.shadow.style.opacity = `${0.65 - arc * 0.35}`;
+
+            if (progressRatio < 1.0) {
+              activeRafRef.current[key] = requestAnimationFrame(animateForward);
+            } else {
+              delete activeRafRef.current[key];
+              const finalCoord = waypoints[waypoints.length - 1];
+              currentEl.root.style.transform = `translate3d(${finalCoord.c * 100}%, ${finalCoord.r * 100}%, 0)`;
+              currentEl.pawn.style.transform = `translate3d(0px, 0px, 0) scale(1) rotate(-${boardRotation}deg)`;
+              currentEl.shadow.style.transform = 'scale(1)';
+              currentEl.shadow.style.opacity = '0.65';
+
+              // Landing event sounds
+              if (targetProg === 56) {
+                sounds.playHomeArrival();
+              } else if (targetProg >= 0 && targetProg <= 50) {
+                const startIndices = { rose: 0, lavender: 13, peach: 26, mint: 39 };
+                const tileIdx = ((startIndices[player.color] ?? 0) + targetProg) % 52;
+                if ([0, 8, 13, 21, 26, 34, 39, 47].includes(tileIdx)) {
+                  sounds.playSafeLanding();
+                }
+              }
+            }
+          };
+
+          activeRafRef.current[key] = requestAnimationFrame(animateForward);
+        }
+        // CASE B: Spawn from Base onto Track (-1 -> 0)
+        else if (targetProg === 0 && prevProg === -1) {
+          sounds.playTokenSpawn();
+          const from = getCoordForProgress(player.color, -1, token.id);
+          const to = getCoordForProgress(player.color, 0, token.id);
+          const spawnDuration = 220;
+          const startTime = performance.now();
+
+          const animateSpawn = (now: number) => {
+            const currentEl = tokenNodesRef.current.get(key);
+            if (!currentEl) return;
+
+            const elapsed = now - startTime;
+            const t = Math.min(1.0, elapsed / spawnDuration);
+            const c = from.c + (to.c - from.c) * t;
+            const r = from.r + (to.r - from.r) * t;
+            const arc = 4 * t * (1 - t);
+            const hopY = arc * 16;
+
+            currentEl.root.style.transform = `translate3d(${c * 100}%, ${r * 100}%, 0)`;
+            currentEl.pawn.style.transform = `translate3d(0px, ${-hopY}px, 0) scale(${1 + arc * 0.2}) rotate(-${boardRotation}deg)`;
+
+            if (t < 1.0) {
+              activeRafRef.current[key] = requestAnimationFrame(animateSpawn);
+            } else {
+              delete activeRafRef.current[key];
+              currentEl.root.style.transform = `translate3d(${to.c * 100}%, ${to.r * 100}%, 0)`;
+              currentEl.pawn.style.transform = `translate3d(0px, 0px, 0) scale(1) rotate(-${boardRotation}deg)`;
+            }
+          };
+
+          activeRafRef.current[key] = requestAnimationFrame(animateSpawn);
+        }
+        // CASE C: Captured / Killed (Holds for attacker strike -> Rewinds smoothly back to base slot)
+        else if (targetProg === -1 && prevProg >= 0) {
+          const impactDelay = maxAttackerDuration > 0 ? maxAttackerDuration : 0;
+
+          // Reverse waypoints from prevProg back to 0, then into -1 (base slot)
+          const waypoints: GridCoord[] = [];
+          for (let p = prevProg; p >= 0; p--) {
+            waypoints.push(getCoordForProgress(player.color, p, token.id));
+          }
+          waypoints.push(getCoordForProgress(player.color, -1, token.id));
+
+          const stepsCount = waypoints.length - 1;
+          const rewindStepDuration = Math.max(18, Math.min(28, Math.floor(400 / stepsCount)));
+          const totalRewindDuration = stepsCount * rewindStepDuration;
+
+          // Hold victim in place until attacker lands
+          const victimCoord = getCoordForProgress(player.color, prevProg, token.id);
+          if (node) {
+            node.root.style.transform = `translate3d(${victimCoord.c * 100}%, ${victimCoord.r * 100}%, 0)`;
+          }
 
           const impactTimer = setTimeout(() => {
-            // Strike impact sound
             sounds.playCapturePop();
+            sounds.playRewindStep();
 
-            // Rewind backwards step-by-step along the exact path it came
-            for (let s = 1; s <= rewindStepsCount; s++) {
-              const rewindVal = (s === rewindStepsCount) ? -1 : (prevProg - s);
-              const stepTimer = setTimeout(() => {
-                setAnimTokens(prev => ({
-                  ...prev,
-                  [key]: { step: rewindVal, isRewind: true }
-                }));
-                sounds.playRewindStep();
+            const startTime = performance.now();
+            const animateRewind = (now: number) => {
+              const currentEl = tokenNodesRef.current.get(key);
+              if (!currentEl) return;
 
-                if (s === rewindStepsCount) {
-                  // Settled back into base home slot
-                  setTimeout(() => {
-                    setAnimTokens(prev => {
-                      const copy = { ...prev };
-                      delete copy[key];
-                      return copy;
-                    });
-                  }, 100);
-                }
-              }, (s - 1) * rewindSpeed);
-              timers.push(stepTimer);
-            }
+              const elapsed = now - startTime;
+              const progressRatio = Math.min(1.0, elapsed / totalRewindDuration);
+              const totalHop = progressRatio * stepsCount;
+              const currentHop = Math.min(stepsCount - 1, Math.floor(totalHop));
+              const subT = totalHop - currentHop;
+
+              const from = waypoints[currentHop];
+              const to = waypoints[currentHop + 1];
+
+              const c = from.c + (to.c - from.c) * subT;
+              const r = from.r + (to.r - from.r) * subT;
+              const spinDeg = -boardRotation - (progressRatio * 360);
+
+              currentEl.root.style.transform = `translate3d(${c * 100}%, ${r * 100}%, 0)`;
+              currentEl.pawn.style.transform = `translate3d(0px, 0px, 0) scale(0.95) rotate(${spinDeg}deg)`;
+
+              if (progressRatio < 1.0) {
+                activeRafRef.current[key] = requestAnimationFrame(animateRewind);
+              } else {
+                delete activeRafRef.current[key];
+                const finalCoord = waypoints[waypoints.length - 1];
+                currentEl.root.style.transform = `translate3d(${finalCoord.c * 100}%, ${finalCoord.r * 100}%, 0)`;
+                currentEl.pawn.style.transform = `translate3d(0px, 0px, 0) scale(1) rotate(-${boardRotation}deg)`;
+              }
+            };
+
+            activeRafRef.current[key] = requestAnimationFrame(animateRewind);
           }, impactDelay);
-          timers.push(impactTimer);
+
+          activeTimersRef.current[key].push(impactTimer);
         }
       });
     });
-  }, [gameState]);
 
-  // Map every token to its current grid row & col coordinate based on animated progress
+    return () => {
+      // Cleanup any active animation loops on unmount
+      Object.values(activeRafRef.current).forEach(id => cancelAnimationFrame(id));
+      Object.values(activeTimersRef.current).forEach(timers => timers.forEach(t => clearTimeout(t)));
+    };
+  }, [gameState, boardRotation]);
+
+  // Map every token to its current grid row & col coordinate
   const placedTokens: Array<{
     playerColor: PlayerColor;
     playerId: string;
     token: Token;
     coord: GridCoord;
     isMovable: boolean;
-    isHopping: boolean;
-    isRewinding: boolean;
   }> = [];
 
   gameState.players.forEach(player => {
     player.tokens.forEach((token) => {
-      const key = `${player.color}-${token.id}`;
-      const anim = animTokens[key];
-      const currentProg = anim !== undefined ? anim.step : token.progress;
-      const coord = getCoordForProgress(player.color, currentProg, token.id);
-
+      const coord = getCoordForProgress(player.color, token.progress, token.id);
       const isMovable = isMyTurn && player.id === myPlayerId && movableTokenIds.includes(token.id);
-      const isHopping = anim !== undefined && !anim.isRewind;
-      const isRewinding = anim !== undefined && !!anim.isRewind;
 
       placedTokens.push({
         playerColor: player.color,
         playerId: player.id,
         token,
         coord,
-        isMovable,
-        isHopping,
-        isRewinding
+        isMovable
       });
     });
   });
@@ -457,13 +558,12 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
         {/* Memoized static board cells - zero diffing cost during movement */}
         {staticBoardGrid}
 
-        {/* 60FPS Pure Hardware-Accelerated Pawn Layer (GPU translate3d off the JS thread) */}
+        {/* 60FPS / 120FPS Direct RAF Hardware-Accelerated Pawn Layer */}
         <div className="absolute inset-1 pointer-events-none z-30">
           {placedTokens.map((item) => {
+            const key = `${item.playerColor}-${item.token.id}`;
             const colorCfg = COLOR_STYLES[item.playerColor];
             const isSelectedMovable = item.isMovable;
-            const isHopping = item.isHopping;
-            const isRewinding = item.isRewinding;
 
             const cellKey = `${item.coord.r}-${item.coord.c}`;
             const cellGroup = cellTokensMap.get(cellKey) || [item];
@@ -507,10 +607,20 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
               }
             }
 
-            // Outer wrapper translates smoothly along the 15x15 board coordinates on the GPU
             return (
               <div
                 key={`token-${item.playerColor}-${item.token.id}`}
+                ref={(el) => {
+                  if (el) {
+                    tokenNodesRef.current.set(key, {
+                      root: el,
+                      pawn: el.querySelector('.pawn-body') as HTMLDivElement,
+                      shadow: el.querySelector('.pawn-shadow') as HTMLDivElement
+                    });
+                  } else {
+                    tokenNodesRef.current.delete(key);
+                  }
+                }}
                 style={{
                   position: 'absolute',
                   top: 0,
@@ -518,26 +628,21 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
                   width: '6.6667%',
                   height: '6.6667%',
                   transform: `translate3d(${item.coord.c * 100}%, ${item.coord.r * 100}%, 0)`,
-                  transition: isRewinding
-                    ? 'transform 26ms linear'
-                    : isHopping
-                    ? 'transform 118ms cubic-bezier(0.25, 0.1, 0.25, 1)'
-                    : 'transform 180ms ease-out',
                   willChange: 'transform'
                 }}
                 className={`flex items-center justify-center ${
                   isSelectedMovable ? 'z-40 pointer-events-auto' : 'z-30 pointer-events-none'
                 }`}
               >
-                {/* Inner Tactile Pawn: Parabolic Bounce Arc + Drop Shadow + Counter-Rotation */}
+                {/* Inner Tactile Pawn: Hardware Accelerated Transform Arc */}
                 <div
+                  className={`pawn-body relative flex items-center justify-center ${
+                    isSelectedMovable ? 'cursor-pointer' : ''
+                  }`}
                   style={{
-                    transform: `translate3d(${clusterX}px, ${isHopping ? -9 : clusterY}px, 0) scale(${
+                    transform: `translate3d(${clusterX}px, ${clusterY}px, 0) scale(${
                       isSelectedMovable ? clusterScale * 1.08 : clusterScale
-                    }) rotate(${isRewinding ? -boardRotation - 360 : -boardRotation}deg)`,
-                    transition: isHopping
-                      ? 'transform 118ms cubic-bezier(0.33, 1, 0.68, 1)'
-                      : 'transform 180ms ease-out',
+                    }) rotate(-${boardRotation}deg)`,
                     willChange: 'transform'
                   }}
                   onClick={(e) => {
@@ -547,15 +652,15 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
                       onSelectToken(item.token.id);
                     }
                   }}
-                  className={`relative flex items-center justify-center ${
-                    isSelectedMovable ? 'cursor-pointer' : ''
-                  }`}
                 >
                   {/* Dynamic 3D Ground Drop Shadow */}
                   <div
-                    className={`absolute -bottom-1 w-5 h-1.5 sm:w-6 sm:h-2 rounded-full bg-black/60 pointer-events-none transition-transform duration-100 ${
-                      isHopping ? 'scale-75 opacity-30 -translate-y-1' : 'scale-100 opacity-70'
-                    }`}
+                    className="pawn-shadow absolute -bottom-1 w-5 h-1.5 sm:w-6 sm:h-2 rounded-full bg-black/60 pointer-events-none"
+                    style={{
+                      transform: 'scale(1)',
+                      opacity: 0.65,
+                      willChange: 'transform, opacity'
+                    }}
                   />
 
                   {/* Glossy Beveled Token Pawn */}
