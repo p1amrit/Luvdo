@@ -522,19 +522,36 @@ export const App: React.FC = () => {
         {!inRoom ? (
           /* Landing Screen */
           <div className="w-full max-w-xl mx-auto text-center space-y-6 sm:space-y-8 px-4">
-            <div className="space-y-3">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full glass-pill border border-pink-400/30 text-pink-200 text-xs font-medium">
-                <Sparkles size={13} className="text-pink-300" />
-                <span>Play with Friends, Besties, or Your Date</span>
+            <div className="space-y-3 sm:space-y-4">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full glass-pill border border-pink-400/40 text-pink-200 text-xs font-bold shadow-md bg-white/5">
+                <span className="animate-pulse">🎲</span>
+                <span>The Modern Real-Time Ludo Experience</span>
+                <span className="text-emerald-400 font-extrabold text-[10px] bg-emerald-500/20 px-2 py-0.5 rounded-full border border-emerald-400/30">60 FPS</span>
               </div>
 
-              <h1 className="text-4xl sm:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-pink-300 via-yellow-100 to-purple-300 tracking-tight leading-tight">
-                Ludo, Reimagined.
+              <h1 className="text-4xl sm:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-pink-300 via-rose-200 to-purple-300 tracking-tight leading-tight">
+                Roll, Laugh & Win.
               </h1>
 
-              <p className="text-sm sm:text-base text-pink-100/80 max-w-md mx-auto leading-relaxed">
-                Aesthetic mood lighting, party dares, ultra-low latency live voice chat, and real-time multiplayer.
+              <p className="text-xs sm:text-sm text-pink-100/80 max-w-md mx-auto leading-relaxed font-medium">
+                Smooth 60FPS pawn motion, low-latency live voice chat, 2v2 couple squads, and authentic Ludo King kill rewinds. Play with your besties, your date, or smart bots!
               </p>
+
+              {/* Feature Highlights Pills */}
+              <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2 pt-1">
+                <span className="px-2.5 py-1 rounded-xl bg-white/10 border border-white/15 text-[11px] font-bold text-pink-200 flex items-center gap-1">
+                  🎙️ Live Voice Chat
+                </span>
+                <span className="px-2.5 py-1 rounded-xl bg-white/10 border border-white/15 text-[11px] font-bold text-teal-200 flex items-center gap-1">
+                  ⚡ 60FPS Pawn Motion
+                </span>
+                <span className="px-2.5 py-1 rounded-xl bg-white/10 border border-white/15 text-[11px] font-bold text-purple-200 flex items-center gap-1">
+                  👫 2v2 & 1v1 Battles
+                </span>
+                <span className="px-2.5 py-1 rounded-xl bg-white/10 border border-white/15 text-[11px] font-bold text-amber-200 flex items-center gap-1">
+                  📲 Instant WhatsApp Share
+                </span>
+              </div>
             </div>
 
             {/* Setup Your Profile (Name & Avatar - Set Once Before Entering) */}

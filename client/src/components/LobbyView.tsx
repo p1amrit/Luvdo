@@ -27,6 +27,16 @@ export const LobbyView: React.FC<LobbyViewProps> = ({ room, myPlayer, onThemeCha
     setTimeout(() => setCopied(false), 2500);
   };
 
+  const handleWhatsAppShare = () => {
+    const origin = (typeof window !== 'undefined' && (window.location.hostname === 'localhost' && window.location.port === '' || window.location.protocol === 'capacitor:'))
+      ? 'https://luvdo.onrender.com'
+      : window.location.origin;
+    const url = `${origin}?room=${room.id}`;
+    const shareText = `🎲 Join my match on LUVDO!\n\nRoom Code: *${room.id}*\n👉 Tap link to join directly: ${url}\n\nLet's see who wins! 💖🔥`;
+    const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(shareText)}`;
+    window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+  };
+
   const handleColorChange = (color: PlayerColor) => {
     socketService.updateProfile(room.id, myPlayer.id, { color });
   };
@@ -87,23 +97,41 @@ export const LobbyView: React.FC<LobbyViewProps> = ({ room, myPlayer, onThemeCha
         <h1 className="text-3xl sm:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-pink-400 via-rose-300 to-purple-400">
           LUVDO
         </h1>
-        <p className="text-xs sm:text-sm text-pink-200/80">
-          The aesthetic real-time Ludo experience for everyone
+        <p className="text-xs sm:text-sm text-pink-200/80 font-medium">
+          Real-time voice arena • 2v2 couple squads • 60FPS arcade Ludo
         </p>
 
-        {/* Shareable Room Box */}
-        <div className="inline-flex items-center gap-3 px-4 py-2 mt-2 rounded-2xl glass-panel border border-pink-400/30 shadow-lg">
-          <span className="text-xs text-pink-200/70">Room Code:</span>
-          <span className="text-base font-black tracking-widest text-pink-300 font-mono">
-            {room.id}
-          </span>
-          <button
-            onClick={handleCopyLink}
-            className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-pink-500/30 hover:bg-pink-500/40 text-pink-200 text-xs font-semibold transition-all active:scale-95 border border-pink-400/40"
-          >
-            {copied ? <Check size={14} className="text-emerald-300" /> : <Copy size={14} />}
-            <span>{copied ? 'Copied!' : 'Copy Invite Link'}</span>
-          </button>
+        {/* Shareable Room Box with Copy Link & WhatsApp Share */}
+        <div className="inline-flex flex-wrap items-center justify-center gap-2 sm:gap-3 px-3.5 sm:px-4 py-2 mt-2 rounded-2xl glass-panel border border-pink-400/30 shadow-lg">
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-pink-200/70">Room:</span>
+            <span className="text-sm sm:text-base font-black tracking-widest text-pink-300 font-mono">
+              {room.id}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <button
+              onClick={handleCopyLink}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-pink-500/30 hover:bg-pink-500/40 text-pink-200 text-xs font-semibold transition-all active:scale-95 border border-pink-400/40"
+              title="Copy shareable link"
+            >
+              {copied ? <Check size={14} className="text-emerald-300" /> : <Copy size={14} />}
+              <span>{copied ? 'Copied!' : 'Copy Link'}</span>
+            </button>
+
+            {/* Direct WhatsApp Share Button */}
+            <button
+              onClick={handleWhatsAppShare}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600/30 hover:bg-emerald-600/50 text-emerald-200 text-xs font-bold transition-all active:scale-95 border border-emerald-400/50 shadow-md"
+              title="Send room invite directly on WhatsApp"
+            >
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" className="shrink-0 text-emerald-300">
+                <path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91C2.13 13.66 2.59 15.36 3.45 16.86L2.05 22L7.3 20.62C8.75 21.41 10.38 21.83 12.04 21.83C17.5 21.83 21.95 17.38 21.95 11.92C21.95 9.27 20.92 6.78 19.05 4.91C17.18 3.03 14.69 2 12.04 2ZM12.05 3.67C14.25 3.67 16.31 4.53 17.87 6.09C19.42 7.65 20.28 9.72 20.28 11.92C20.28 16.46 16.59 20.15 12.04 20.15C10.56 20.15 9.11 19.76 7.85 19.01L7.55 18.83L4.43 19.65L5.26 16.61L5.06 16.29C4.24 14.99 3.8 13.47 3.8 11.91C3.81 7.37 7.5 3.67 12.05 3.67ZM8.53 7.33C8.36 7.33 8.1 7.4 7.87 7.64C7.65 7.88 7.03 8.47 7.03 9.68C7.03 10.89 7.91 12.06 8.03 12.22C8.16 12.39 9.73 14.81 12.18 15.86C14.22 16.74 14.63 16.56 15.08 16.52C15.53 16.48 16.53 15.93 16.74 15.35C16.94 14.77 16.94 14.27 16.88 14.17C16.82 14.07 16.66 14.01 16.42 13.89C16.18 13.77 15 13.19 14.77 13.11C14.54 13.03 14.38 12.99 14.22 13.23C14.05 13.47 13.58 14.01 13.44 14.17C13.3 14.33 13.16 14.35 12.92 14.23C12.68 14.11 11.91 13.86 10.99 13.04C10.28 12.4 9.8 11.61 9.66 11.37C9.52 11.13 9.65 11 9.77 10.88C9.88 10.77 10.02 10.59 10.14 10.45C10.26 10.31 10.3 10.21 10.38 10.05C10.46 9.89 10.42 9.75 10.36 9.63C10.3 9.51 9.83 8.35 9.63 7.88C9.44 7.42 9.24 7.48 9.09 7.47C8.95 7.47 8.79 7.33 8.53 7.33Z"/>
+              </svg>
+              <span>WhatsApp</span>
+            </button>
+          </div>
         </div>
       </div>
 
