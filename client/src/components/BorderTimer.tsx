@@ -5,9 +5,16 @@ interface BorderTimerProps {
   className?: string;
   urgent?: boolean;
   rx?: number;
+  strokeWidth?: number;
 }
 
-export const BorderTimer: React.FC<BorderTimerProps> = ({ percent, className = '', urgent = false, rx = 8 }) => {
+export const BorderTimer: React.FC<BorderTimerProps> = ({
+  percent,
+  className = '',
+  urgent = false,
+  rx = 8,
+  strokeWidth = 2.5
+}) => {
   // Color dynamically shifts from emerald green to amber to bright rose red
   const strokeColor =
     percent > 50

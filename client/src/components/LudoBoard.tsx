@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { GameState, PlayerColor, Token } from '../types/game';
 import {
   MAIN_TRACK_COORDS,
@@ -10,7 +10,6 @@ import {
   getCoordForProgress
 } from '../utils/boardCoordinates';
 import { sounds } from '../services/soundEffects';
-import { BorderTimer } from './BorderTimer';
 
 interface LudoBoardProps {
   gameState: GameState;
@@ -231,183 +230,31 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
       <div className="relative w-full h-full grid grid-cols-15 grid-rows-15 gap-[1px] sm:gap-[2px] bg-slate-950/80 p-1 rounded-xl sm:rounded-2xl border border-white/10 overflow-hidden">
 
         {/* 1. Base Corner: Rose (Top-Left, 0..5, 0..5) */}
-        <div className="relative col-start-1 col-span-6 row-start-1 row-span-6 rounded-lg sm:rounded-xl bg-gradient-to-br from-rose-950/90 via-pink-900/70 to-rose-900/50 p-1.5 sm:p-2 border border-rose-500/40 flex flex-col justify-between">
-          {rosePlayer ? (
-            <div className="flex items-center justify-between text-[10px] sm:text-xs font-bold px-0.5 sm:px-1 z-10">
-              <div className={`relative inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg ${
-                currentPlayer?.color === 'rose'
-                  ? 'bg-rose-950/90 border border-rose-400/60 shadow-[0_0_12px_rgba(244,63,94,0.35)]'
-                  : 'bg-black/35 border border-white/10'
-              }`}>
-                {currentPlayer?.color === 'rose' && turnTimePercent !== undefined && (
-                  <BorderTimer percent={turnTimePercent} rx={8} />
-                )}
-                <span>🔴</span>
-                <span className="truncate max-w-[62px] sm:max-w-none text-rose-300 font-extrabold">
-                  {rosePlayer.name}
-                </span>
-              </div>
-              <span className="text-[9px] sm:text-[10px] bg-rose-500/30 text-rose-200 px-1.5 py-0.5 rounded-full border border-rose-400/40 font-black">
-                {rosePlayer.tokensHome || 0}/{gameState.targetTokensToWin}
-              </span>
-            </div>
-          ) : (
-            <div className="h-5" />
-          )}
-
-          {/* Ludo King Speech Bubble: Rose */}
-          <AnimatePresence>
-            {rosePlayer && homeChatBubbles?.rose && (
-              <motion.div
-                key={`bubble-rose-${homeChatBubbles.rose.timestamp}`}
-                initial={{ scale: 0, opacity: 0, y: 10 }}
-                animate={{ scale: 1, opacity: 1, y: 0 }}
-                exit={{ scale: 0.5, opacity: 0 }}
-                transition={{ type: 'spring', stiffness: 500, damping: 22 }}
-                className="absolute top-8 sm:top-9 left-1/2 -translate-x-1/2 z-40 pointer-events-none w-[90%] max-w-[125px] sm:max-w-[145px] filter drop-shadow-[0_8px_20px_rgba(0,0,0,0.85)]"
-              >
-                <div className="relative px-2.5 py-1.5 rounded-2xl bg-white text-slate-900 border-2 border-rose-500 font-black text-[10px] sm:text-xs leading-snug shadow-2xl break-words text-center">
-                  <span>{homeChatBubbles.rose.text}</span>
-                  <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-2.5 h-2.5 bg-white border-l-2 border-t-2 border-rose-500 transform rotate-45" />
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+        <div className={`relative col-start-1 col-span-6 row-start-1 row-span-6 rounded-lg sm:rounded-xl bg-gradient-to-br from-rose-950/80 via-pink-900/50 to-rose-900/30 p-2 border border-rose-500/40 flex items-center justify-center ${
+          !rosePlayer ? 'opacity-30' : ''
+        }`}>
+          <div className="w-[84%] h-[84%] rounded-xl bg-slate-950/60 border border-rose-500/20 shadow-inner" />
         </div>
 
         {/* 2. Base Corner: Lavender (Top-Right, 0..5, 9..14) */}
-        <div className="relative col-start-10 col-span-6 row-start-1 row-span-6 rounded-lg sm:rounded-xl bg-gradient-to-br from-purple-950/90 via-indigo-900/70 to-purple-900/50 p-1.5 sm:p-2 border border-purple-500/40 flex flex-col justify-between">
-          {lavenderPlayer ? (
-            <div className="flex items-center justify-between text-[10px] sm:text-xs font-bold px-0.5 sm:px-1 z-10">
-              <div className={`relative inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg ${
-                currentPlayer?.color === 'lavender'
-                  ? 'bg-purple-950/90 border border-purple-400/60 shadow-[0_0_12px_rgba(168,85,247,0.35)]'
-                  : 'bg-black/35 border border-white/10'
-              }`}>
-                {currentPlayer?.color === 'lavender' && turnTimePercent !== undefined && (
-                  <BorderTimer percent={turnTimePercent} rx={8} />
-                )}
-                <span>🟣</span>
-                <span className="truncate max-w-[62px] sm:max-w-none text-purple-300 font-extrabold">
-                  {lavenderPlayer.name}
-                </span>
-              </div>
-              <span className="text-[9px] sm:text-[10px] bg-purple-500/30 text-purple-200 px-1.5 py-0.5 rounded-full border border-purple-400/40 font-black">
-                {lavenderPlayer.tokensHome || 0}/{gameState.targetTokensToWin}
-              </span>
-            </div>
-          ) : (
-            <div className="h-5" />
-          )}
-
-          {/* Ludo King Speech Bubble: Lavender */}
-          <AnimatePresence>
-            {lavenderPlayer && homeChatBubbles?.lavender && (
-              <motion.div
-                key={`bubble-lavender-${homeChatBubbles.lavender.timestamp}`}
-                initial={{ scale: 0, opacity: 0, y: 10 }}
-                animate={{ scale: 1, opacity: 1, y: 0 }}
-                exit={{ scale: 0.5, opacity: 0 }}
-                transition={{ type: 'spring', stiffness: 500, damping: 22 }}
-                className="absolute top-8 sm:top-9 left-1/2 -translate-x-1/2 z-40 pointer-events-none w-[90%] max-w-[125px] sm:max-w-[145px] filter drop-shadow-[0_8px_20px_rgba(0,0,0,0.85)]"
-              >
-                <div className="relative px-2.5 py-1.5 rounded-2xl bg-white text-slate-900 border-2 border-purple-500 font-black text-[10px] sm:text-xs leading-snug shadow-2xl break-words text-center">
-                  <span>{homeChatBubbles.lavender.text}</span>
-                  <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-2.5 h-2.5 bg-white border-l-2 border-t-2 border-purple-500 transform rotate-45" />
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+        <div className={`relative col-start-10 col-span-6 row-start-1 row-span-6 rounded-lg sm:rounded-xl bg-gradient-to-br from-purple-950/80 via-indigo-900/50 to-purple-900/30 p-2 border border-purple-500/40 flex items-center justify-center ${
+          !lavenderPlayer ? 'opacity-30' : ''
+        }`}>
+          <div className="w-[84%] h-[84%] rounded-xl bg-slate-950/60 border border-purple-500/20 shadow-inner" />
         </div>
 
         {/* 3. Base Corner: Peach (Bottom-Right, 9..14, 9..14) */}
-        <div className="relative col-start-10 col-span-6 row-start-10 row-span-6 rounded-lg sm:rounded-xl bg-gradient-to-br from-amber-950/90 via-orange-900/70 to-amber-900/50 p-1.5 sm:p-2 border border-amber-500/40 flex flex-col justify-between">
-          {peachPlayer ? (
-            <div className="flex items-center justify-between text-[10px] sm:text-xs font-bold px-0.5 sm:px-1 z-10">
-              <div className={`relative inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg ${
-                currentPlayer?.color === 'peach'
-                  ? 'bg-amber-950/90 border border-amber-400/60 shadow-[0_0_12px_rgba(245,158,11,0.35)]'
-                  : 'bg-black/35 border border-white/10'
-              }`}>
-                {currentPlayer?.color === 'peach' && turnTimePercent !== undefined && (
-                  <BorderTimer percent={turnTimePercent} rx={8} />
-                )}
-                <span>🟡</span>
-                <span className="truncate max-w-[62px] sm:max-w-none text-amber-300 font-extrabold">
-                  {peachPlayer.name}
-                </span>
-              </div>
-              <span className="text-[9px] sm:text-[10px] bg-amber-500/30 text-amber-200 px-1.5 py-0.5 rounded-full border border-amber-400/40 font-black">
-                {peachPlayer.tokensHome || 0}/{gameState.targetTokensToWin}
-              </span>
-            </div>
-          ) : (
-            <div className="h-5" />
-          )}
-
-          {/* Ludo King Speech Bubble: Peach */}
-          <AnimatePresence>
-            {peachPlayer && homeChatBubbles?.peach && (
-              <motion.div
-                key={`bubble-peach-${homeChatBubbles.peach.timestamp}`}
-                initial={{ scale: 0, opacity: 0, y: 10 }}
-                animate={{ scale: 1, opacity: 1, y: 0 }}
-                exit={{ scale: 0.5, opacity: 0 }}
-                transition={{ type: 'spring', stiffness: 500, damping: 22 }}
-                className="absolute top-8 sm:top-9 left-1/2 -translate-x-1/2 z-40 pointer-events-none w-[90%] max-w-[125px] sm:max-w-[145px] filter drop-shadow-[0_8px_20px_rgba(0,0,0,0.85)]"
-              >
-                <div className="relative px-2.5 py-1.5 rounded-2xl bg-white text-slate-900 border-2 border-amber-500 font-black text-[10px] sm:text-xs leading-snug shadow-2xl break-words text-center">
-                  <span>{homeChatBubbles.peach.text}</span>
-                  <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-2.5 h-2.5 bg-white border-l-2 border-t-2 border-amber-500 transform rotate-45" />
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+        <div className={`relative col-start-10 col-span-6 row-start-10 row-span-6 rounded-lg sm:rounded-xl bg-gradient-to-br from-amber-950/80 via-orange-900/50 to-amber-900/30 p-2 border border-amber-500/40 flex items-center justify-center ${
+          !peachPlayer ? 'opacity-30' : ''
+        }`}>
+          <div className="w-[84%] h-[84%] rounded-xl bg-slate-950/60 border border-amber-500/20 shadow-inner" />
         </div>
 
         {/* 4. Base Corner: Mint (Bottom-Left, 9..14, 0..5) */}
-        <div className="relative col-start-1 col-span-6 row-start-10 row-span-6 rounded-lg sm:rounded-xl bg-gradient-to-br from-teal-950/90 via-emerald-900/70 to-teal-900/50 p-1.5 sm:p-2 border border-teal-500/40 flex flex-col justify-between">
-          {mintPlayer ? (
-            <div className="flex items-center justify-between text-[10px] sm:text-xs font-bold px-0.5 sm:px-1 z-10">
-              <div className={`relative inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg ${
-                currentPlayer?.color === 'mint'
-                  ? 'bg-teal-950/90 border border-teal-400/60 shadow-[0_0_12px_rgba(20,184,166,0.35)]'
-                  : 'bg-black/35 border border-white/10'
-              }`}>
-                {currentPlayer?.color === 'mint' && turnTimePercent !== undefined && (
-                  <BorderTimer percent={turnTimePercent} rx={8} />
-                )}
-                <span>🟢</span>
-                <span className="truncate max-w-[62px] sm:max-w-none text-teal-300 font-extrabold">
-                  {mintPlayer.name}
-                </span>
-              </div>
-              <span className="text-[9px] sm:text-[10px] bg-teal-500/30 text-teal-200 px-1.5 py-0.5 rounded-full border border-teal-400/40 font-black">
-                {mintPlayer.tokensHome || 0}/{gameState.targetTokensToWin}
-              </span>
-            </div>
-          ) : (
-            <div className="h-5" />
-          )}
-
-          {/* Ludo King Speech Bubble: Mint */}
-          <AnimatePresence>
-            {mintPlayer && homeChatBubbles?.mint && (
-              <motion.div
-                key={`bubble-mint-${homeChatBubbles.mint.timestamp}`}
-                initial={{ scale: 0, opacity: 0, y: 10 }}
-                animate={{ scale: 1, opacity: 1, y: 0 }}
-                exit={{ scale: 0.5, opacity: 0 }}
-                transition={{ type: 'spring', stiffness: 500, damping: 22 }}
-                className="absolute top-8 sm:top-9 left-1/2 -translate-x-1/2 z-40 pointer-events-none w-[90%] max-w-[125px] sm:max-w-[145px] filter drop-shadow-[0_8px_20px_rgba(0,0,0,0.85)]"
-              >
-                <div className="relative px-2.5 py-1.5 rounded-2xl bg-white text-slate-900 border-2 border-teal-500 font-black text-[10px] sm:text-xs leading-snug shadow-2xl break-words text-center">
-                  <span>{homeChatBubbles.mint.text}</span>
-                  <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-2.5 h-2.5 bg-white border-l-2 border-t-2 border-teal-500 transform rotate-45" />
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+        <div className={`relative col-start-1 col-span-6 row-start-10 row-span-6 rounded-lg sm:rounded-xl bg-gradient-to-br from-teal-950/80 via-emerald-900/50 to-teal-900/30 p-2 border border-teal-500/40 flex items-center justify-center ${
+          !mintPlayer ? 'opacity-30' : ''
+        }`}>
+          <div className="w-[84%] h-[84%] rounded-xl bg-slate-950/60 border border-teal-500/20 shadow-inner" />
         </div>
 
         {/* Center: Traditional 4-Triangle Ludo Home (rows 6..8, cols 6..8) */}

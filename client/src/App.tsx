@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Sparkles, Volume2, VolumeX, ArrowLeft, Users } from 'lucide-react';
-import { Room, GameState, AestheticTheme, RoomVibe, ChatMessage, Player } from './types/game';
+import { Room, GameState, AestheticTheme, RoomVibe, ChatMessage, Player, PlayerColor } from './types/game';
 import { socketService, getApiUrl } from './services/socket';
 import { sounds } from './services/soundEffects';
 import { AestheticBackground } from './components/AestheticBackground';
 import { LobbyView } from './components/LobbyView';
 import { LudoBoard } from './components/LudoBoard';
-import { DiceRoller } from './components/DiceRoller';
+import { PlayerPod } from './components/PlayerPod';
 import { VoiceChatBar } from './components/VoiceChatBar';
 import { TextChatDrawer } from './components/TextChatDrawer';
 import { FloatingReactionOverlay } from './components/FloatingReactionOverlay';
@@ -46,6 +46,12 @@ export const App: React.FC = () => {
   const [synchronizedPulse, setSynchronizedPulse] = useState(false);
   const [partnerTouch, setPartnerTouch] = useState<{ x: number; y: number } | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [lastDiceByColor, setLastDiceByColor] = useState<Record<PlayerColor, number | null>>({
+    rose: null,
+    lavender: null,
+    peach: null,
+    mint: null
+  });
   const autoMoveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 15-second Turn Countdown Timer & Auto-play fallback
@@ -244,13 +250,20 @@ export const App: React.FC = () => {
     socket.on('dice-rolled', ({ gameState: newGameState, rollResult }: { gameState: GameState; rollResult?: { movableTokenIds: number[] } }) => {
       setGameState({ ...newGameState });
 
+      const currentTurnPlayer = newGameState.players[newGameState.currentTurnIndex];
+      if (currentTurnPlayer && newGameState.diceValue !== null) {
+        setLastDiceByColor((prev) => ({
+          ...prev,
+          [currentTurnPlayer.color]: newGameState.diceValue
+        }));
+      }
+
       if (autoMoveTimerRef.current) {
         clearTimeout(autoMoveTimerRef.current);
         autoMoveTimerRef.current = null;
       }
 
       // Auto-move token briskly if it is the ONLY eligible moving token right as the dice settles!
-      const currentTurnPlayer = newGameState.players[newGameState.currentTurnIndex];
       const movable = rollResult?.movableTokenIds || newGameState.movableTokenIds || [];
 
       if (
@@ -436,6 +449,11 @@ export const App: React.FC = () => {
   const isMyTurn = currentTurnPlayer.id === myPlayerId;
   const canRoll = isMyTurn && gameState?.diceValue === null && !gameState?.winner;
 
+  const rosePlayer = gameState?.players.find((p) => p.color === 'rose');
+  const lavenderPlayer = gameState?.players.find((p) => p.color === 'lavender');
+  const peachPlayer = gameState?.players.find((p) => p.color === 'peach');
+  const mintPlayer = gameState?.players.find((p) => p.color === 'mint');
+
   return (
     <AestheticBackground theme={currentTheme}>
       {/* Top Floating App Bar */}
@@ -607,69 +625,107 @@ export const App: React.FC = () => {
             onThemeChange={(th) => setCurrentTheme(th)}
           />
         ) : gameState ? (
-          /* Live Game View */
-          <div className="w-full max-w-4xl mx-auto flex flex-col items-center gap-2 sm:gap-4 px-1 sm:px-4">
+          /* Live Game Arena: Authentic Ludo King Console Structure */
+          <div className="w-full max-w-[min(96vw,440px)] mx-auto flex flex-col items-center gap-1.5 sm:gap-2.5 px-0.5 select-none">
             {/* Last event banner */}
             {gameState.lastEvent && (
-              <div className={`px-3 sm:px-4 py-1 rounded-full glass-panel border text-[11px] sm:text-xs font-semibold text-center shadow-lg animate-fade-in max-w-md truncate ${
-                gameState.lastEvent.type === 'penalty'
-                  ? 'border-amber-400 bg-amber-950/90 text-amber-200 font-extrabold shadow-[0_0_15px_rgba(245,158,11,0.5)]'
-                  : 'border-pink-400/30 text-pink-200'
-              }`}>
+              <div
+                className={`px-3 sm:px-4 py-1 rounded-full glass-panel border text-[11px] sm:text-xs font-semibold text-center shadow-lg animate-fade-in max-w-md truncate ${
+                  gameState.lastEvent.type === 'penalty'
+                    ? 'border-amber-400 bg-amber-950/90 text-amber-200 font-extrabold shadow-[0_0_15px_rgba(245,158,11,0.5)]'
+                    : 'border-pink-400/30 text-pink-200'
+                }`}
+              >
                 {gameState.lastEvent.text}
               </div>
             )}
 
-            {/* Board and Controls */}
-            <div className="w-full flex flex-col md:flex-row items-center justify-center gap-2.5 md:gap-6">
-              {/* Ludo Board */}
-              <div className="w-full max-w-[min(94vw,430px,46vh)]">
-                <LudoBoard
-                  gameState={gameState}
-                  myPlayerId={myPlayerId}
-                  onSelectToken={handleSelectToken}
-                  onScreenTouch={handleScreenTouch}
-                  homeChatBubbles={homeChatBubbles}
-                  turnTimePercent={turnTimePercent}
-                />
-              </div>
+            {/* Top Row: Rose (Left) & Lavender (Right) Consoles */}
+            <div className="w-full flex items-center justify-between px-1">
+              <PlayerPod
+                player={rosePlayer}
+                color="rose"
+                isCurrentTurn={currentTurnPlayer?.color === 'rose'}
+                isMyTurn={isMyTurn && currentTurnPlayer?.color === 'rose'}
+                isLocalPlayer={rosePlayer?.id === myPlayerId}
+                turnTimePercent={turnTimePercent}
+                diceValue={currentTurnPlayer?.color === 'rose' ? gameState.diceValue : null}
+                lastDiceValue={lastDiceByColor.rose}
+                rollId={gameState.rollId}
+                isRolling={gameState.isRolling}
+                canRoll={canRoll && currentTurnPlayer?.color === 'rose'}
+                onRoll={handleRollDice}
+                align="left"
+                chatBubble={homeChatBubbles?.rose}
+                targetTokensToWin={gameState.targetTokensToWin}
+              />
 
-              {/* Mobile Compact Dice Bar (md:hidden) */}
-              <div className="w-full max-w-[min(94vw,430px)] md:hidden">
-                <DiceRoller
-                  currentTurnPlayer={currentTurnPlayer}
-                  isMyTurn={isMyTurn}
-                  diceValue={gameState.diceValue}
-                  rollId={gameState.rollId}
-                  isRolling={gameState.isRolling}
-                  onRoll={handleRollDice}
-                  canRoll={canRoll}
-                  compact={true}
-                />
-              </div>
+              <PlayerPod
+                player={lavenderPlayer}
+                color="lavender"
+                isCurrentTurn={currentTurnPlayer?.color === 'lavender'}
+                isMyTurn={isMyTurn && currentTurnPlayer?.color === 'lavender'}
+                isLocalPlayer={lavenderPlayer?.id === myPlayerId}
+                turnTimePercent={turnTimePercent}
+                diceValue={currentTurnPlayer?.color === 'lavender' ? gameState.diceValue : null}
+                lastDiceValue={lastDiceByColor.lavender}
+                rollId={gameState.rollId}
+                isRolling={gameState.isRolling}
+                canRoll={canRoll && currentTurnPlayer?.color === 'lavender'}
+                onRoll={handleRollDice}
+                align="right"
+                chatBubble={homeChatBubbles?.lavender}
+                targetTokensToWin={gameState.targetTokensToWin}
+              />
+            </div>
 
-              {/* Desktop Controls Column (hidden md:flex) */}
-              <div className="hidden md:flex w-56 flex-col gap-3">
-                <DiceRoller
-                  currentTurnPlayer={currentTurnPlayer}
-                  isMyTurn={isMyTurn}
-                  diceValue={gameState.diceValue}
-                  rollId={gameState.rollId}
-                  isRolling={gameState.isRolling}
-                  onRoll={handleRollDice}
-                  canRoll={canRoll}
-                  compact={false}
-                />
+            {/* 15x15 Clean Ludo Board */}
+            <div className="w-full aspect-square">
+              <LudoBoard
+                gameState={gameState}
+                myPlayerId={myPlayerId}
+                onSelectToken={handleSelectToken}
+                onScreenTouch={handleScreenTouch}
+              />
+            </div>
 
-                <div className="p-3.5 rounded-2xl glass-panel border border-white/10 text-center space-y-1">
-                  <p className="text-[11px] text-white/60 uppercase tracking-wider font-semibold">
-                    Target to Win
-                  </p>
-                  <p className="text-sm font-bold text-pink-300">
-                    {gameState.targetTokensToWin} Tokens Home 🏆
-                  </p>
-                </div>
-              </div>
+            {/* Bottom Row: Mint (Left) & Peach (Right) Consoles */}
+            <div className="w-full flex items-center justify-between px-1">
+              <PlayerPod
+                player={mintPlayer}
+                color="mint"
+                isCurrentTurn={currentTurnPlayer?.color === 'mint'}
+                isMyTurn={isMyTurn && currentTurnPlayer?.color === 'mint'}
+                isLocalPlayer={mintPlayer?.id === myPlayerId}
+                turnTimePercent={turnTimePercent}
+                diceValue={currentTurnPlayer?.color === 'mint' ? gameState.diceValue : null}
+                lastDiceValue={lastDiceByColor.mint}
+                rollId={gameState.rollId}
+                isRolling={gameState.isRolling}
+                canRoll={canRoll && currentTurnPlayer?.color === 'mint'}
+                onRoll={handleRollDice}
+                align="left"
+                chatBubble={homeChatBubbles?.mint}
+                targetTokensToWin={gameState.targetTokensToWin}
+              />
+
+              <PlayerPod
+                player={peachPlayer}
+                color="peach"
+                isCurrentTurn={currentTurnPlayer?.color === 'peach'}
+                isMyTurn={isMyTurn && currentTurnPlayer?.color === 'peach'}
+                isLocalPlayer={peachPlayer?.id === myPlayerId}
+                turnTimePercent={turnTimePercent}
+                diceValue={currentTurnPlayer?.color === 'peach' ? gameState.diceValue : null}
+                lastDiceValue={lastDiceByColor.peach}
+                rollId={gameState.rollId}
+                isRolling={gameState.isRolling}
+                canRoll={canRoll && currentTurnPlayer?.color === 'peach'}
+                onRoll={handleRollDice}
+                align="right"
+                chatBubble={homeChatBubbles?.peach}
+                targetTokensToWin={gameState.targetTokensToWin}
+              />
             </div>
           </div>
         ) : null}
