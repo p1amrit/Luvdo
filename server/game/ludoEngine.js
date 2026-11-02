@@ -63,7 +63,6 @@ export function createInitialGameState(playerConfigs = [], options = {}) {
     ],
     tokensHome: 0,
     hasWon: false,
-    missedTurns: 0,
     isBot: !!p.isBot
   }));
 

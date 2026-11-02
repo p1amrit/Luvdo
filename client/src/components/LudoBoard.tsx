@@ -247,23 +247,9 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
                   {rosePlayer.name}
                 </span>
               </div>
-              <div className="flex items-center gap-1">
-                <span className="text-[9px] sm:text-[10px] bg-rose-500/30 text-rose-200 px-1.5 py-0.5 rounded-full border border-rose-400/40 font-black">
-                  {rosePlayer.tokensHome || 0}/{gameState.targetTokensToWin}
-                </span>
-                <div className="flex items-center gap-0.5" title={`${Math.max(0, 3 - (rosePlayer.missedTurns || 0))}/3 turn lives remaining`}>
-                  {Array.from({ length: 3 }).map((_, i) => (
-                    <span
-                      key={i}
-                      className={`text-[7px] sm:text-[8px] transition-all duration-300 ${
-                        i < 3 - (rosePlayer.missedTurns || 0) ? 'opacity-100 scale-100' : 'opacity-20 grayscale scale-75'
-                      }`}
-                    >
-                      ❤️
-                    </span>
-                  ))}
-                </div>
-              </div>
+              <span className="text-[9px] sm:text-[10px] bg-rose-500/30 text-rose-200 px-1.5 py-0.5 rounded-full border border-rose-400/40 font-black">
+                {rosePlayer.tokensHome || 0}/{gameState.targetTokensToWin}
+              </span>
             </div>
           ) : (
             <div className="h-5" />
@@ -306,23 +292,9 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
                   {lavenderPlayer.name}
                 </span>
               </div>
-              <div className="flex items-center gap-1">
-                <span className="text-[9px] sm:text-[10px] bg-purple-500/30 text-purple-200 px-1.5 py-0.5 rounded-full border border-purple-400/40 font-black">
-                  {lavenderPlayer.tokensHome || 0}/{gameState.targetTokensToWin}
-                </span>
-                <div className="flex items-center gap-0.5" title={`${Math.max(0, 3 - (lavenderPlayer.missedTurns || 0))}/3 turn lives remaining`}>
-                  {Array.from({ length: 3 }).map((_, i) => (
-                    <span
-                      key={i}
-                      className={`text-[7px] sm:text-[8px] transition-all duration-300 ${
-                        i < 3 - (lavenderPlayer.missedTurns || 0) ? 'opacity-100 scale-100' : 'opacity-20 grayscale scale-75'
-                      }`}
-                    >
-                      ❤️
-                    </span>
-                  ))}
-                </div>
-              </div>
+              <span className="text-[9px] sm:text-[10px] bg-purple-500/30 text-purple-200 px-1.5 py-0.5 rounded-full border border-purple-400/40 font-black">
+                {lavenderPlayer.tokensHome || 0}/{gameState.targetTokensToWin}
+              </span>
             </div>
           ) : (
             <div className="h-5" />
@@ -365,23 +337,9 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
                   {peachPlayer.name}
                 </span>
               </div>
-              <div className="flex items-center gap-1">
-                <span className="text-[9px] sm:text-[10px] bg-amber-500/30 text-amber-200 px-1.5 py-0.5 rounded-full border border-amber-400/40 font-black">
-                  {peachPlayer.tokensHome || 0}/{gameState.targetTokensToWin}
-                </span>
-                <div className="flex items-center gap-0.5" title={`${Math.max(0, 3 - (peachPlayer.missedTurns || 0))}/3 turn lives remaining`}>
-                  {Array.from({ length: 3 }).map((_, i) => (
-                    <span
-                      key={i}
-                      className={`text-[7px] sm:text-[8px] transition-all duration-300 ${
-                        i < 3 - (peachPlayer.missedTurns || 0) ? 'opacity-100 scale-100' : 'opacity-20 grayscale scale-75'
-                      }`}
-                    >
-                      ❤️
-                    </span>
-                  ))}
-                </div>
-              </div>
+              <span className="text-[9px] sm:text-[10px] bg-amber-500/30 text-amber-200 px-1.5 py-0.5 rounded-full border border-amber-400/40 font-black">
+                {peachPlayer.tokensHome || 0}/{gameState.targetTokensToWin}
+              </span>
             </div>
           ) : (
             <div className="h-5" />
@@ -424,23 +382,9 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
                   {mintPlayer.name}
                 </span>
               </div>
-              <div className="flex items-center gap-1">
-                <span className="text-[9px] sm:text-[10px] bg-teal-500/30 text-teal-200 px-1.5 py-0.5 rounded-full border border-teal-400/40 font-black">
-                  {mintPlayer.tokensHome || 0}/{gameState.targetTokensToWin}
-                </span>
-                <div className="flex items-center gap-0.5" title={`${Math.max(0, 3 - (mintPlayer.missedTurns || 0))}/3 turn lives remaining`}>
-                  {Array.from({ length: 3 }).map((_, i) => (
-                    <span
-                      key={i}
-                      className={`text-[7px] sm:text-[8px] transition-all duration-300 ${
-                        i < 3 - (mintPlayer.missedTurns || 0) ? 'opacity-100 scale-100' : 'opacity-20 grayscale scale-75'
-                      }`}
-                    >
-                      ❤️
-                    </span>
-                  ))}
-                </div>
-              </div>
+              <span className="text-[9px] sm:text-[10px] bg-teal-500/30 text-teal-200 px-1.5 py-0.5 rounded-full border border-teal-400/40 font-black">
+                {mintPlayer.tokensHome || 0}/{gameState.targetTokensToWin}
+              </span>
             </div>
           ) : (
             <div className="h-5" />

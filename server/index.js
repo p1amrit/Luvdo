@@ -130,18 +130,6 @@ function startTurnTimer(room) {
     const activePlayer = room.gameState.players[room.gameState.currentTurnIndex];
     if (!activePlayer || activePlayer.id !== currentTurnPlayer.id) return;
 
-    // Track missed turns for human players (authoritative 3-missed-turns life system from Ludo King)
-    if (!activePlayer.isBot) {
-      activePlayer.missedTurns = (activePlayer.missedTurns || 0) + 1;
-      console.log(`[TurnTimer] Missed turn ${activePlayer.missedTurns}/3 for ${activePlayer.name} in room ${roomId}`);
-
-      if (activePlayer.missedTurns >= 3) {
-        console.log(`[TurnTimer] Player ${activePlayer.name} reached 3 missed turns -> Forfeiting match`);
-        handlePlayerDeparture(roomId, activePlayer.id, true);
-        return;
-      }
-    }
-
     console.log(`[TurnTimer] Auto-action triggered for ${activePlayer.name} in room ${roomId}`);
 
     if (room.gameState.diceValue === null) {
@@ -480,8 +468,6 @@ io.on('connection', (socket) => {
       return;
     }
 
-    currentPlayer.missedTurns = 0;
-
     const rollResult = rollDiceForCurrentPlayer(room.gameState);
     if (!rollResult) return;
 
@@ -514,8 +500,6 @@ io.on('connection', (socket) => {
     if (currentPlayer.id !== playerId) {
       return;
     }
-
-    currentPlayer.missedTurns = 0;
 
     const success = moveToken(room.gameState, tokenId);
     if (success) {
