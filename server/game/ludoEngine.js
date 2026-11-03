@@ -47,7 +47,7 @@ export const SAFE_INDICES = [0, 8, 13, 21, 26, 34, 39, 47];
 
 export function createInitialGameState(playerConfigs = [], options = {}) {
   // playerConfigs: [{ id, name, avatar, color }]
-  const { mode = 'friends-party', vibe = 'friends', gentleMode = false, quickMode = true } = options;
+  const { mode = 'friends-party', vibe = 'friends', gentleMode = false, quickMode = false } = options;
 
   const players = playerConfigs.map((p, idx) => ({
     id: p.id,
@@ -71,7 +71,7 @@ export function createInitialGameState(playerConfigs = [], options = {}) {
     vibe,
     gentleMode,
     quickMode,
-    targetTokensToWin: 4, // Declare winner only when all 4 tokens reach the home chamber
+    targetTokensToWin: quickMode ? 2 : 4, // 4 by default (or 2 if quickMode is toggled on)
     players,
     currentTurnIndex: 0,
     diceValue: null,

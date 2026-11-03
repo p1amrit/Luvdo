@@ -354,7 +354,7 @@ export const App: React.FC = () => {
           vibe: 'friends',
           mode: 'free-for-all-4p',
           gentleMode: false,
-          quickMode: true
+          quickMode: false
         })
       });
 
@@ -626,6 +626,16 @@ export const App: React.FC = () => {
                 <span>Join with Code</span>
               </button>
             </div>
+
+            {/* Front Page Footer */}
+            <div className="pt-5 pb-1 text-center select-none">
+              <p className="text-xs sm:text-[13px] text-pink-200/60 font-semibold tracking-wide flex items-center justify-center gap-1.5">
+                <span>Made with</span>
+                <span className="text-rose-400 inline-block animate-pulse">❤️</span>
+                <span>by</span>
+                <span className="text-pink-300 font-extrabold tracking-normal">Amrit</span>
+              </p>
+            </div>
           </div>
         ) : inRoom && !room ? (
           /* Connecting Room Fallback */
@@ -811,10 +821,17 @@ export const App: React.FC = () => {
           myPlayerId={myPlayerId}
           roomId={room?.id || roomId}
           vibe={room?.vibe}
+          targetTokens={gameState.targetTokensToWin || 4}
+          isHost={myPlayer.isHost}
           onPlayAgain={() => {
             if (myPlayer.isHost) {
               socketService.startGame(room?.id || roomId);
+            } else {
+              socketService.returnToLobby(room?.id || roomId);
             }
+          }}
+          onReturnToLobby={() => {
+            socketService.returnToLobby(room?.id || roomId);
           }}
         />
       )}

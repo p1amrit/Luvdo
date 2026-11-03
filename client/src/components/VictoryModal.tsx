@@ -1,8 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import confetti from 'canvas-confetti';
+import { Trophy, RotateCcw, Home, Crown, Target, Sparkles } from 'lucide-react';
 import { Player, RoomVibe } from '../types/game';
 import { sounds } from '../services/soundEffects';
-import { socketService } from '../services/socket';
+import { COLOR_STYLES } from '../utils/boardCoordinates';
+import { AvatarImg } from './AvatarImg';
 
 interface VictoryModalProps {
   winner: Player;
@@ -10,148 +12,142 @@ interface VictoryModalProps {
   myPlayerId: string;
   roomId: string;
   vibe?: RoomVibe;
+  targetTokens?: number;
+  isHost?: boolean;
   onPlayAgain: () => void;
+  onReturnToLobby?: () => void;
 }
 
 export const VictoryModal: React.FC<VictoryModalProps> = ({
   winner,
   byForfeit = false,
   myPlayerId,
-  roomId,
-  vibe = 'friends',
-  onPlayAgain
+  targetTokens = 4,
+  isHost = false,
+  onPlayAgain,
+  onReturnToLobby
 }) => {
   const isMe = winner.id === myPlayerId;
-  const [loveNote, setLoveNote] = useState('');
-  const [sentNote, setSentNote] = useState<string | null>(null);
+  const colStyle = COLOR_STYLES[winner.color];
 
   useEffect(() => {
     sounds.playVictoryChime();
 
-    // Fire celebration confetti
-    const duration = 3.5 * 1000;
-    const animationEnd = Date.now() + duration;
-
-    const frame = () => {
+    // Multi-stage grand celebration confetti bursts
+    const fireBurst = (particleRatio: number, opts: confetti.Options) => {
       confetti({
-        particleCount: 5,
-        angle: 60,
-        spread: 65,
-        origin: { x: 0 },
-        colors: ['#38bdf8', '#ec4899', '#a855f7', '#fbbf24', '#10b981']
+        origin: { y: 0.65 },
+        ...opts,
+        particleCount: Math.floor(70 * particleRatio)
       });
-      confetti({
-        particleCount: 5,
-        angle: 120,
-        spread: 65,
-        origin: { x: 1 },
-        colors: ['#38bdf8', '#ec4899', '#a855f7', '#fbbf24', '#10b981']
-      });
-
-      if (Date.now() < animationEnd) {
-        requestAnimationFrame(frame);
-      }
     };
-    frame();
+
+    fireBurst(0.25, { spread: 26, startVelocity: 55 });
+    fireBurst(0.2, { spread: 60 });
+    fireBurst(0.35, { spread: 100, decay: 0.91, scalar: 0.8 });
+    fireBurst(0.1, { spread: 120, startVelocity: 25, decay: 0.92, scalar: 1.2 });
+    fireBurst(0.1, { spread: 120, startVelocity: 45 });
+
+    const timer = setTimeout(() => {
+      confetti({
+        particleCount: 80,
+        angle: 60,
+        spread: 70,
+        origin: { x: 0, y: 0.6 },
+        colors: ['#f43f5e', '#a855f7', '#fbbf24', '#34d399', '#38bdf8']
+      });
+      confetti({
+        particleCount: 80,
+        angle: 120,
+        spread: 70,
+        origin: { x: 1, y: 0.6 },
+        colors: ['#f43f5e', '#a855f7', '#fbbf24', '#34d399', '#38bdf8']
+      });
+    }, 400);
+
+    return () => clearTimeout(timer);
   }, []);
 
-  const handleSendLoveNote = () => {
-    if (!loveNote.trim()) return;
-    setSentNote(loveNote);
-    const prefix = vibe === 'couple' ? '🏆 VICTORY LOVE NOTE' : '🏆 CHAMPION DEMAND';
-    socketService.sendChatMessage(roomId, {
-      senderId: myPlayerId,
-      senderName: winner.name,
-      senderAvatar: winner.avatar,
-      text: `${prefix}: "${loveNote}"`
-    });
-  };
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
-      <div className="relative w-full max-w-lg p-6 sm:p-8 rounded-3xl bg-gradient-to-b from-slate-900 via-purple-950 to-slate-950 border-2 border-pink-400/40 shadow-[0_0_60px_rgba(244,63,94,0.7)] text-center text-white">
-        {/* Crown and Trophy */}
-        <div className="text-5xl mb-2 animate-bounce">
-          👑
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-xl animate-fade-in">
+      <div className="relative w-full max-w-sm sm:max-w-md p-6 sm:p-7 rounded-[32px] bg-gradient-to-b from-slate-900/95 via-purple-950/90 to-slate-950/95 border border-amber-400/40 shadow-[0_0_80px_rgba(245,158,11,0.35)] text-center text-white overflow-hidden">
+        {/* Ambient Top Golden Glow */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-72 h-36 bg-gradient-to-b from-amber-500/25 via-pink-500/10 to-transparent blur-3xl pointer-events-none" />
+
+        {/* Top Trophy Emblem */}
+        <div className="relative inline-flex items-center justify-center w-16 h-16 sm:w-18 sm:h-18 rounded-3xl bg-gradient-to-tr from-amber-500 via-yellow-300 to-amber-500 p-0.5 shadow-[0_0_35px_rgba(251,191,36,0.6)] mb-3 ring-4 ring-amber-400/30">
+          <div className="w-full h-full rounded-[22px] bg-slate-950/80 flex items-center justify-center">
+            <Trophy size={32} className="text-amber-300 drop-shadow" />
+          </div>
+          <Sparkles size={16} className="absolute -top-1 -right-1 text-yellow-300 animate-spin" />
         </div>
 
-        <h2 className="text-2xl sm:text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-pink-300 via-yellow-200 to-purple-300">
-          {isMe
-            ? (byForfeit ? '🏆 You Won! Opponent Left the Game' : 'You Won the Game!')
-            : (byForfeit ? `🏆 ${winner.name} Won! Opponent Left` : `${winner.name} is the Champion!`)}
+        {/* Celebratory Pill Badge */}
+        <div className="mb-2">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-400/40 shadow-sm">
+            {byForfeit ? '⚡ Victory By Forfeit' : isMe ? '🎉 Victory Royale' : '👑 Match Champion'}
+          </span>
+        </div>
+
+        {/* Main Heading */}
+        <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-pink-200 to-yellow-100">
+          {isMe ? 'You Won The Match!' : `${winner.name} Won!`}
         </h2>
 
-        <p className="text-sm text-pink-200/90 mt-1 mb-6">
+        {/* Subtitle */}
+        <p className="text-xs sm:text-sm text-pink-200/80 mt-1 mb-5">
           {byForfeit
-            ? 'The opponent left the match — victory and bragging rights belong to you!'
+            ? 'Opponent left the match — victory is rightfully yours!'
             : isMe
-            ? (vibe === 'couple'
-                ? 'All 4 tokens reached the Love Sanctuary! Claim your romantic prize below.'
-                : 'All 4 tokens home! Claim your bragging rights or snack tax.')
-            : (vibe === 'couple'
-                ? 'A wonderful date match! Time to pamper the winner with love.'
-                : 'Good game all! Winner takes all the glory.')}
+            ? 'Outstanding play! All tokens brought safely home to victory!'
+            : 'Congratulations! A masterclass performance on the board.'}
         </p>
 
-        {/* Winner Avatar Card */}
-        <div className="inline-flex items-center gap-3 px-5 py-2.5 rounded-2xl bg-white/10 border border-white/20 mb-6 shadow-inner">
-          <span className="text-3xl">{winner.avatar}</span>
-          <div className="text-left">
-            <p className="text-sm font-bold text-white">{winner.name}</p>
-            <p className="text-xs text-yellow-300 font-medium">Ludo Grand Champion</p>
+        {/* Champion Showcase Card */}
+        <div className="p-4 rounded-2xl bg-white/5 border border-white/15 mb-5 shadow-inner backdrop-blur-md">
+          <div className="relative inline-block mb-2">
+            <div className="w-18 h-18 sm:w-20 sm:h-20 rounded-2xl p-0.5 bg-gradient-to-tr from-amber-400 to-yellow-300 ring-2 ring-amber-400 shadow-[0_0_20px_rgba(251,191,36,0.5)] overflow-hidden">
+              <AvatarImg avatar={winner.avatar} alt={winner.name} className="w-full h-full object-cover rounded-[14px]" />
+            </div>
+            <div className="absolute -top-2.5 -right-2.5 w-7 h-7 rounded-full bg-gradient-to-tr from-amber-400 to-yellow-200 flex items-center justify-center shadow-md text-slate-950 ring-2 ring-slate-950">
+              <Crown size={15} className="fill-current text-slate-950" />
+            </div>
+          </div>
+
+          <h3 className="text-base sm:text-lg font-black text-white">{winner.name}</h3>
+
+          <div className="flex items-center justify-center gap-2 mt-1.5">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold border border-white/20 bg-white/10">
+              <span>{colStyle?.emoji}</span>
+              <span className={colStyle?.textColor || 'text-white'}>{colStyle?.name || winner.color}</span>
+            </span>
+
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold border border-emerald-400/30 bg-emerald-500/15 text-emerald-300">
+              <Target size={12} />
+              <span>{targetTokens}/{targetTokens} Home</span>
+            </span>
           </div>
         </div>
 
-        {/* Victory Note Section */}
-        {isMe ? (
-          <div className="p-4 rounded-2xl bg-black/40 border border-white/15 text-left mb-6">
-            <label className="block text-xs font-semibold text-pink-300 mb-2">
-              {vibe === 'couple'
-                ? '💌 Write a Victory Love Note or Claim a Voucher:'
-                : '🏆 Claim Your Winner Reward (e.g. Free Boba/Pizza, Favor):'}
-            </label>
-            {sentNote ? (
-              <p className="text-sm text-emerald-300 italic">
-                "{sentNote}" (Broadcasted to the room!)
-              </p>
-            ) : (
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={loveNote}
-                  onChange={(e) => setLoveNote(e.target.value)}
-                  placeholder={
-                    vibe === 'couple'
-                      ? 'e.g., I claim a 20-min massage & dinner treat! 🥰'
-                      : 'e.g., You all owe me boba and pizza! 🍕🧋'
-                  }
-                  className="flex-1 px-3 py-2 rounded-xl bg-white/10 border border-white/20 text-white text-xs placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-pink-500"
-                />
-                <button
-                  onClick={handleSendLoveNote}
-                  className="px-4 py-2 rounded-xl bg-pink-600 hover:bg-pink-500 text-xs font-bold transition-all"
-                >
-                  Send
-                </button>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="p-4 rounded-2xl bg-black/40 border border-white/15 text-center mb-6">
-            <p className="text-xs text-pink-200 italic">
-              "GG! Ready for revenge in the next round?" 🔥
-            </p>
-          </div>
-        )}
-
-        {/* Buttons */}
-        <div className="flex gap-3 justify-center">
+        {/* Clean Action Buttons */}
+        <div className="space-y-2.5">
           <button
             onClick={onPlayAgain}
-            className="w-full py-3 px-6 rounded-2xl bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-bold text-sm shadow-xl transition-transform active:scale-95"
+            className="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-amber-500 via-rose-500 to-purple-600 hover:from-amber-400 hover:to-purple-500 text-white font-black text-sm sm:text-base shadow-[0_10px_30px_rgba(244,63,94,0.4)] transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
           >
-            Play Again / Next Round
+            <RotateCcw size={18} />
+            <span>{isHost ? 'Play Again' : 'Play Again'}</span>
           </button>
+
+          {onReturnToLobby && (
+            <button
+              onClick={onReturnToLobby}
+              className="w-full py-2.5 px-4 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/15 text-white/90 hover:text-white font-bold text-xs sm:text-sm transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <Home size={15} />
+              <span>Return to Lobby</span>
+            </button>
+          )}
         </div>
       </div>
     </div>

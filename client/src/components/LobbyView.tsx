@@ -538,8 +538,11 @@ export const LobbyView: React.FC<LobbyViewProps> = ({ room, myPlayer, onThemeCha
             <button
               onClick={handleQuickToggle}
               className={`py-2 px-3 rounded-xl border text-xs font-bold flex items-center justify-between transition-all ${
-                room.quickMode ? 'border-amber-400/60 bg-amber-500/20 text-amber-200' : 'border-white/10 bg-white/5 text-white/70'
+                !room.quickMode
+                  ? 'border-purple-400/60 bg-purple-500/20 text-purple-200 shadow-sm'
+                  : 'border-amber-400/60 bg-amber-500/20 text-amber-200'
               }`}
+              title="Toggle Match Pace between Full (4 tokens) and Quick (2 tokens)"
             >
               <span>Match Pace:</span>
               <span className="text-[11px] font-extrabold">{room.quickMode ? 'Quick (2)' : 'Full (4)'}</span>

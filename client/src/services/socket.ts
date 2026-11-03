@@ -113,6 +113,10 @@ class SocketService {
     this.getSocket().emit('start-game', { roomId });
   }
 
+  public returnToLobby(roomId: string) {
+    this.getSocket().emit('return-to-lobby', { roomId });
+  }
+
   public addBot(roomId: string) {
     this.getSocket().emit('add-bot', { roomId });
   }

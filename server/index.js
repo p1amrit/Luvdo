@@ -69,7 +69,7 @@ app.get('/api/rooms/:roomId', (req, res) => {
 
 // Create Room Endpoint
 app.post('/api/rooms/create', (req, res) => {
-  const { hostName, hostAvatar, vibe = 'friends', mode = 'free-for-all-4p', theme = 'celestial', gentleMode = false, quickMode = true } = req.body;
+  const { hostName, hostAvatar, vibe = 'friends', mode = 'free-for-all-4p', theme = 'celestial', gentleMode = false, quickMode = false } = req.body;
   const roomId = generateRoomCode();
 
   const newRoom = {
@@ -445,6 +445,20 @@ io.on('connection', (socket) => {
     io.to(roomId).emit('game-started', { gameState: room.gameState, room });
     startTurnTimer(room);
     checkAndPlayBotTurn(room);
+  });
+
+  // Return to Lobby after Match
+  socket.on('return-to-lobby', ({ roomId }) => {
+    const room = rooms.get(roomId);
+    if (!room) return;
+    room.status = 'lobby';
+    room.gameState = null;
+    if (turnTimers.has(roomId)) {
+      clearTimeout(turnTimers.get(roomId));
+      turnTimers.delete(roomId);
+    }
+    io.to(roomId).emit('room-updated', { room });
+    console.log(`[Room ${roomId}] Returned to lobby`);
   });
 
   // Add AI Bot (Max 4 players)
