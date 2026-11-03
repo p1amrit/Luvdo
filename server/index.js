@@ -100,7 +100,8 @@ app.post('/api/rooms/create', (req, res) => {
     },
     touchSync: {
       touches: {} // playerId -> { x, y, timestamp }
-    }
+    },
+    voicePlayerIds: []
   };
 
   rooms.set(roomId, newRoom);
@@ -630,9 +631,25 @@ io.on('connection', (socket) => {
     socket.to(roomId).emit('music-synced', { musicState: room.musicState });
   });
 
-  // WebRTC Voice Signaling
-  socket.on('voice-join', ({ roomId, peerId }) => {
-    socket.to(roomId).emit('voice-user-joined', { peerId, socketId: socket.id });
+  // WebRTC Voice Signaling & Live Voice Tracking
+  socket.on('voice-join', ({ roomId, peerId, playerId }) => {
+    const targetRoomId = roomId || socket.data.roomId;
+    const targetPlayerId = playerId || socket.data.playerId;
+    const room = rooms.get(targetRoomId);
+
+    if (room && targetPlayerId) {
+      if (!Array.isArray(room.voicePlayerIds)) {
+        room.voicePlayerIds = [];
+      }
+      if (!room.voicePlayerIds.includes(targetPlayerId)) {
+        room.voicePlayerIds.push(targetPlayerId);
+      }
+      io.to(targetRoomId).emit('voice-users-updated', { voicePlayerIds: room.voicePlayerIds });
+      io.to(targetRoomId).emit('room-updated', { room });
+      console.log(`[Voice ${targetRoomId}] Player ${targetPlayerId} joined voice (${socket.id})`);
+    }
+
+    socket.to(targetRoomId).emit('voice-user-joined', { peerId, socketId: socket.id, playerId: targetPlayerId });
   });
 
   socket.on('voice-signal', ({ toSocketId, signal, fromSocketId }) => {
@@ -642,8 +659,19 @@ io.on('connection', (socket) => {
     });
   });
 
-  socket.on('voice-leave', ({ roomId }) => {
-    socket.to(roomId).emit('voice-user-left', { socketId: socket.id });
+  socket.on('voice-leave', ({ roomId, playerId }) => {
+    const targetRoomId = roomId || socket.data.roomId;
+    const targetPlayerId = playerId || socket.data.playerId;
+    const room = rooms.get(targetRoomId);
+
+    if (room && targetPlayerId && Array.isArray(room.voicePlayerIds)) {
+      room.voicePlayerIds = room.voicePlayerIds.filter(id => id !== targetPlayerId);
+      io.to(targetRoomId).emit('voice-users-updated', { voicePlayerIds: room.voicePlayerIds });
+      io.to(targetRoomId).emit('room-updated', { room });
+      console.log(`[Voice ${targetRoomId}] Player ${targetPlayerId} left voice (${socket.id})`);
+    }
+
+    socket.to(targetRoomId).emit('voice-user-left', { socketId: socket.id, playerId: targetPlayerId });
   });
 
   // Leave Room
@@ -651,6 +679,12 @@ io.on('connection', (socket) => {
     const targetRoomId = roomId || socket.data.roomId;
     const targetPlayerId = playerId || socket.data.playerId;
     if (targetRoomId && targetPlayerId) {
+      const room = rooms.get(targetRoomId);
+      if (room && Array.isArray(room.voicePlayerIds) && room.voicePlayerIds.includes(targetPlayerId)) {
+        room.voicePlayerIds = room.voicePlayerIds.filter(id => id !== targetPlayerId);
+        io.to(targetRoomId).emit('voice-users-updated', { voicePlayerIds: room.voicePlayerIds });
+        socket.to(targetRoomId).emit('voice-user-left', { socketId: socket.id, playerId: targetPlayerId });
+      }
       socket.leave(targetRoomId);
       handlePlayerDeparture(targetRoomId, targetPlayerId, true);
     }
@@ -662,6 +696,12 @@ io.on('connection', (socket) => {
     const playerId = socket.data.playerId;
 
     if (roomId && playerId) {
+      const room = rooms.get(roomId);
+      if (room && Array.isArray(room.voicePlayerIds) && room.voicePlayerIds.includes(playerId)) {
+        room.voicePlayerIds = room.voicePlayerIds.filter(id => id !== playerId);
+        io.to(roomId).emit('voice-users-updated', { voicePlayerIds: room.voicePlayerIds });
+        socket.to(roomId).emit('voice-user-left', { socketId: socket.id, playerId });
+      }
       handlePlayerDeparture(roomId, playerId, false);
     }
     console.log(`[Socket] Disconnected: ${socket.id}`);
@@ -683,6 +723,11 @@ function handlePlayerDeparture(roomId, playerId, isImmediate = false) {
     const currentRoom = rooms.get(roomId);
     const p = currentRoom.players.find(x => x.id === playerId);
     if (!p || p.isOnline) return;
+
+    if (Array.isArray(currentRoom.voicePlayerIds) && currentRoom.voicePlayerIds.includes(playerId)) {
+      currentRoom.voicePlayerIds = currentRoom.voicePlayerIds.filter(id => id !== playerId);
+      io.to(roomId).emit('voice-users-updated', { voicePlayerIds: currentRoom.voicePlayerIds });
+    }
 
     if (currentRoom.gameState && !currentRoom.gameState.winner && currentRoom.status === 'playing') {
       // Find remaining online active players

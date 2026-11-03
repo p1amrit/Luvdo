@@ -109,4 +109,5 @@ export interface Room {
     trackTitle: string;
     currentTime: number;
   };
+  voicePlayerIds?: string[];
 }

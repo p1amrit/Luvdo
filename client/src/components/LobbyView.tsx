@@ -89,6 +89,7 @@ export const LobbyView: React.FC<LobbyViewProps> = ({ room, myPlayer, onThemeCha
   const is2v2Mode = room.mode === 'power-couple-2v2';
   const team1Players = room.players.filter(p => (p.team ?? 0) === 0);
   const team2Players = room.players.filter(p => (p.team ?? 0) === 1);
+  const voicePlayers = room.players.filter(p => room.voicePlayerIds?.includes(p.id));
 
   return (
     <div className="w-full max-w-xl mx-auto p-3 sm:p-5 space-y-4">
@@ -130,13 +131,79 @@ export const LobbyView: React.FC<LobbyViewProps> = ({ room, myPlayer, onThemeCha
         </div>
       </div>
 
-      {/* Sleek Voice Chat Bar */}
-      <div className="px-3.5 py-2 rounded-2xl glass-panel border border-emerald-400/30 shadow-md flex items-center justify-between gap-2 bg-gradient-to-r from-emerald-950/30 to-purple-950/30">
-        <div className="flex items-center gap-2">
-          <Mic size={16} className="text-emerald-300 animate-pulse" />
-          <span className="text-xs font-bold text-white">Voice Chat</span>
+      {/* Impressive Live Voice Lounge with Joined Avatars */}
+      <div className="p-3 sm:p-3.5 rounded-3xl glass-panel border border-emerald-400/30 shadow-lg bg-gradient-to-r from-emerald-950/40 via-slate-950/60 to-purple-950/40 backdrop-blur-xl">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          {/* Left: Live Voice Status & Joined Avatars */}
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="relative shrink-0">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center text-emerald-300 shadow-[0_0_15px_rgba(16,185,129,0.3)]">
+                <Mic size={18} className="animate-pulse" />
+              </div>
+              <span className="absolute -top-0.5 -right-0.5 flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500 ring-2 ring-slate-950" />
+              </span>
+            </div>
+
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <span className="text-xs sm:text-sm font-black text-white tracking-wide">
+                  Live Voice
+                </span>
+                {voicePlayers.length > 0 ? (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 animate-pulse">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                    {voicePlayers.length} {voicePlayers.length === 1 ? 'Online' : 'Connected'}
+                  </span>
+                ) : (
+                  <span className="text-[10px] text-white/50 font-medium">Ready</span>
+                )}
+              </div>
+
+              {/* Impressive Overlapping Joined Avatars Stack */}
+              {voicePlayers.length > 0 ? (
+                <div className="flex items-center gap-2 pt-1.5">
+                  <div className="flex -space-x-2.5 overflow-hidden items-center py-0.5">
+                    {voicePlayers.map((vp) => (
+                      <div
+                        key={vp.id}
+                        className="relative group cursor-pointer transition-transform hover:scale-110 hover:z-20"
+                        title={`${vp.name} (In Voice)`}
+                      >
+                        <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full ring-2 ring-emerald-400 bg-slate-900 overflow-hidden shadow-[0_0_10px_rgba(52,211,153,0.45)]">
+                          <AvatarImg avatar={vp.avatar} alt={vp.name} className="w-full h-full object-cover" />
+                        </div>
+                        {/* Live Mic mini-badge on avatar */}
+                        <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 ring-1.5 ring-slate-950 flex items-center justify-center">
+                          <Mic size={7} className="text-white" />
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <span className="text-[11px] text-emerald-200/90 font-semibold truncate max-w-[140px] sm:max-w-[220px]">
+                    {voicePlayers.map(p => p.id === myPlayer.id ? 'You' : p.name).join(', ')}
+                  </span>
+                </div>
+              ) : (
+                <p className="text-[11px] text-white/60 truncate pt-0.5">
+                  Tap <span className="text-emerald-300 font-semibold">Join Voice</span> to talk with players
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Right: Join / Mute / Leave Controls */}
+          <div className="shrink-0 flex items-center justify-end">
+            <VoiceChatBar
+              roomId={room.id}
+              playerId={myPlayer.id}
+              players={room.players}
+              voicePlayerIds={room.voicePlayerIds}
+            />
+          </div>
         </div>
-        <VoiceChatBar roomId={room.id} />
       </div>
 
       {/* Players Section */}

@@ -21,6 +21,7 @@ export class VoiceChatService {
   private audioElements: Map<string, HTMLAudioElement> = new Map();
   private socket: Socket | null = null;
   private roomId: string | null = null;
+  private playerId: string | null = null;
   private isMuted: boolean = false;
   private statusListeners: Set<VoiceStatusListener> = new Set();
   private initializedSocketId: string | null = null;
@@ -116,8 +117,11 @@ export class VoiceChatService {
     this.pendingCandidates.delete(peerId);
   }
 
-  public async startVoice(roomId: string): Promise<boolean> {
+  public async startVoice(roomId: string, playerId?: string): Promise<boolean> {
     this.roomId = roomId;
+    if (playerId) {
+      this.playerId = playerId;
+    }
     try {
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         throw new Error('Microphone not supported on this browser or context.');
@@ -138,7 +142,7 @@ export class VoiceChatService {
       });
 
       this.isMuted = false;
-      this.socket?.emit('voice-join', { roomId, peerId: this.socket.id });
+      this.socket?.emit('voice-join', { roomId, peerId: this.socket.id, playerId: this.playerId });
       this.notifyStatus(true);
       return true;
     } catch (err: unknown) {
@@ -262,7 +266,7 @@ export class VoiceChatService {
     return this.isMuted;
   }
 
-  public stopVoice() {
+  public stopVoice(playerId?: string) {
     if (this.localStream) {
       this.localStream.getTracks().forEach(track => track.stop());
       this.localStream = null;
@@ -277,8 +281,9 @@ export class VoiceChatService {
     this.audioElements.clear();
     this.pendingCandidates.clear();
 
+    const targetPlayerId = playerId || this.playerId;
     if (this.socket && this.roomId) {
-      this.socket.emit('voice-leave', { roomId: this.roomId });
+      this.socket.emit('voice-leave', { roomId: this.roomId, playerId: targetPlayerId });
     }
     this.notifyStatus(false);
   }

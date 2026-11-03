@@ -204,6 +204,10 @@ export const App: React.FC = () => {
       setTimeout(() => setPlayerNotice(null), 3600);
     });
 
+    socket.on('voice-users-updated', ({ voicePlayerIds }: { voicePlayerIds: string[] }) => {
+      setRoom((prev) => (prev ? { ...prev, voicePlayerIds } : prev));
+    });
+
     socket.on('new-chat-message', ({ message }: { message: ChatMessage }) => {
       setChatMessages((prev) => {
         if (prev.some((m) => m.id === message.id)) return prev;
@@ -458,6 +462,7 @@ export const App: React.FC = () => {
   const currentTurnPlayer = gameState?.players[gameState.currentTurnIndex] || myPlayer;
   const isMyTurn = currentTurnPlayer.id === myPlayerId;
   const canRoll = isMyTurn && gameState?.diceValue === null && !gameState?.winner;
+  const isMatchLive = inRoom && room?.status === 'playing' && !!gameState;
 
   // Dynamic quadrant mapping so the local user is ALWAYS anchored at Bottom-Left (matching Ludo King)
   const myColor: PlayerColor = (myPlayer?.color as PlayerColor) || 'mint';
@@ -505,7 +510,16 @@ export const App: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
-          {inRoom && <VoiceChatBar roomId={room?.id || ''} className="shrink-0" />}
+          {inRoom && (
+            <VoiceChatBar
+              roomId={room?.id || ''}
+              playerId={myPlayer.id}
+              players={room?.players}
+              voicePlayerIds={room?.voicePlayerIds}
+              showAvatars={true}
+              className="shrink-0"
+            />
+          )}
 
           <button
             onClick={toggleSoundMute}
@@ -743,8 +757,8 @@ export const App: React.FC = () => {
         ) : null}
       </main>
 
-      {/* Floating Reaction Bar & Overlay */}
-      {inRoom && (
+      {/* Floating Reaction Bar & Overlay - Clean waiting room: Only active during live match */}
+      {isMatchLive && (
         <FloatingReactionOverlay
           roomId={room?.id || roomId}
           playerName={myPlayer.name}
@@ -752,8 +766,8 @@ export const App: React.FC = () => {
         />
       )}
 
-      {/* Chat Drawer */}
-      {inRoom && (
+      {/* Chat Drawer - Clean waiting room: Only active during live match */}
+      {isMatchLive && (
         <TextChatDrawer
           roomId={room?.id || roomId}
           messages={chatMessages}

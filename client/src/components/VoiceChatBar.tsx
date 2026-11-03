@@ -2,13 +2,26 @@ import React, { useState, useEffect } from 'react';
 import { Mic, MicOff, PhoneCall, PhoneOff, Loader2, AlertCircle } from 'lucide-react';
 import { voiceChatService } from '../services/webrtcVoice';
 import { socketService } from '../services/socket';
+import { Player } from '../types/game';
+import { AvatarImg } from './AvatarImg';
 
 interface VoiceChatBarProps {
   roomId: string;
+  playerId?: string;
+  players?: Player[];
+  voicePlayerIds?: string[];
   className?: string;
+  showAvatars?: boolean;
 }
 
-export const VoiceChatBar: React.FC<VoiceChatBarProps> = ({ roomId, className = '' }) => {
+export const VoiceChatBar: React.FC<VoiceChatBarProps> = ({
+  roomId,
+  playerId,
+  players = [],
+  voicePlayerIds = [],
+  className = '',
+  showAvatars = false
+}) => {
   const [isConnected, setIsConnected] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
@@ -39,11 +52,11 @@ export const VoiceChatBar: React.FC<VoiceChatBarProps> = ({ roomId, className = 
     }
 
     if (isConnected) {
-      voiceChatService.stopVoice();
+      voiceChatService.stopVoice(playerId);
     } else {
       setErrorMessage(null);
       setIsConnecting(true);
-      const success = await voiceChatService.startVoice(roomId);
+      const success = await voiceChatService.startVoice(roomId, playerId);
       if (!success) {
         setIsConnecting(false);
       }
@@ -58,8 +71,32 @@ export const VoiceChatBar: React.FC<VoiceChatBarProps> = ({ roomId, className = 
     setIsMuted(newMuted);
   };
 
+  const activeVoicePlayers = (players || []).filter(p => voicePlayerIds?.includes(p.id));
+
   return (
     <div className={`relative flex items-center ${className}`}>
+      {/* Mini Avatar Stack for Header/Compact View */}
+      {showAvatars && activeVoicePlayers.length > 0 && (
+        <div
+          className="flex -space-x-2 items-center mr-1.5"
+          title={`In voice: ${activeVoicePlayers.map(p => p.name).join(', ')}`}
+        >
+          {activeVoicePlayers.slice(0, 3).map((vp) => (
+            <div
+              key={vp.id}
+              className="relative w-6 h-6 rounded-full ring-2 ring-emerald-400 bg-slate-900 overflow-hidden shadow-sm shrink-0"
+            >
+              <AvatarImg avatar={vp.avatar} alt={vp.name} className="w-full h-full object-cover" />
+            </div>
+          ))}
+          {activeVoicePlayers.length > 3 && (
+            <span className="w-5 h-5 rounded-full bg-emerald-950 text-emerald-300 ring-1.5 ring-emerald-400 text-[9px] font-black flex items-center justify-center shrink-0">
+              +{activeVoicePlayers.length - 3}
+            </span>
+          )}
+        </div>
+      )}
+
       {/* Error Tooltip Banner */}
       {errorMessage && (
         <div className="absolute top-full mt-2 right-0 sm:right-auto sm:left-1/2 sm:-translate-x-1/2 z-50 whitespace-nowrap px-3 py-1.5 rounded-xl bg-rose-950/95 border border-rose-500/50 text-rose-200 text-xs font-semibold shadow-2xl flex items-center gap-1.5 animate-fade-in backdrop-blur-md">
