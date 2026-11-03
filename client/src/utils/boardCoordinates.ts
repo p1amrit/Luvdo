@@ -160,7 +160,7 @@ export const COLOR_STYLES: Record<PlayerColor, {
   startIndex: number;
 }> = {
   rose: {
-    name: 'Rose Romance',
+    name: 'Rose',
     emoji: '💖',
     bgGrad: 'from-pink-600/30 to-rose-700/40',
     glow: 'rgba(244, 63, 94, 0.5)',
@@ -171,7 +171,7 @@ export const COLOR_STYLES: Record<PlayerColor, {
     startIndex: 0
   },
   lavender: {
-    name: 'Lavender Dream',
+    name: 'Purple',
     emoji: '💜',
     bgGrad: 'from-purple-600/30 to-indigo-700/40',
     glow: 'rgba(168, 85, 247, 0.5)',
@@ -182,7 +182,7 @@ export const COLOR_STYLES: Record<PlayerColor, {
     startIndex: 13
   },
   peach: {
-    name: 'Sunset Peach',
+    name: 'Peach',
     emoji: '🍑',
     bgGrad: 'from-orange-600/30 to-amber-700/40',
     glow: 'rgba(251, 146, 60, 0.5)',
@@ -193,7 +193,7 @@ export const COLOR_STYLES: Record<PlayerColor, {
     startIndex: 26
   },
   mint: {
-    name: 'Mint Sparkle',
+    name: 'Mint',
     emoji: '🌿',
     bgGrad: 'from-teal-600/30 to-emerald-700/40',
     glow: 'rgba(45, 212, 191, 0.5)',

@@ -3,7 +3,7 @@ export const COLORS = ['mint', 'rose', 'lavender', 'peach'];
 export const COLOR_CONFIG = {
   rose: {
     id: 'rose',
-    name: 'Rose Romance',
+    name: 'Rose',
     emoji: '💖',
     hex: '#f43f5e',
     secondary: '#fb7185',
@@ -12,7 +12,7 @@ export const COLOR_CONFIG = {
   },
   lavender: {
     id: 'lavender',
-    name: 'Lavender Dream',
+    name: 'Purple',
     emoji: '💜',
     hex: '#a855f7',
     secondary: '#c084fc',
@@ -21,7 +21,7 @@ export const COLOR_CONFIG = {
   },
   peach: {
     id: 'peach',
-    name: 'Sunset Peach',
+    name: 'Peach',
     emoji: '🍑',
     hex: '#fb923c',
     secondary: '#fdba74',
@@ -30,7 +30,7 @@ export const COLOR_CONFIG = {
   },
   mint: {
     id: 'mint',
-    name: 'Mint Sparkle',
+    name: 'Mint',
     emoji: '🌿',
     hex: '#2dd4bf',
     secondary: '#5eead4',
